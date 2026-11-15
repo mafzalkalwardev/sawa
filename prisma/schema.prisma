@@ -1,0 +1,528 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Operator {
+  id             String   @id
+  name           String
+  kind           String
+  licenceRef     String
+  emirate        String
+  contactName    String
+  contactPhone   String
+  settlementIban String?
+  active         Boolean  @default(true)
+  drivers        Driver[]
+  vehicles       Vehicle[]
+  payouts        Payout[]
+}
+
+model CorporateAccount {
+  id           String     @id
+  name         String
+  domain       String?
+  billingEmail String
+  status       String     @default("active")
+  customers    Customer[]
+  invoices     Invoice[]
+}
+
+model StaffUser {
+  id           String   @id
+  name         String
+  email        String   @unique
+  phone        String
+  role         String
+  passwordHash String
+  active       Boolean  @default(true)
+  lastLogin    DateTime?
+  createdAt    DateTime @default(now())
+}
+
+model Driver {
+  id                 String          @id
+  operatorId         String
+  operator           Operator        @relation(fields: [operatorId], references: [id])
+  fullName           String
+  displayName        String
+  phone              String          @unique
+  email              String?
+  dateOfBirth        String?
+  nationality        String?
+  gender             String          @default("unspecified")
+  languages          String          @default("en,ar")
+  photoUrl           String?
+  emergencyName      String?
+  emergencyPhone     String?
+  employmentType     String
+  status             String          @default("draft")
+  baseLat            Float?
+  baseLng            Float?
+  baseAddress        String?
+  ratingAvg          Float           @default(5)
+  completedTrips     Int             @default(0)
+  cancellations      Int             @default(0)
+  incidents          Int             @default(0)
+  womenOnlyEligible  Boolean         @default(false)
+  maxDetourMin       Int             @default(12)
+  preferredRouteIds  String          @default("")
+  defaultVehicleId   String?
+  onShift            Boolean         @default(false)
+  shiftStartedAt     DateTime?
+  liveLat            Float?
+  liveLng            Float?
+  liveAt             DateTime?
+  notes              String?
+  createdAt          DateTime        @default(now())
+  vehicles           Vehicle[]       @relation("VehicleDriver")
+  shifts             ShiftTemplate[]
+  timeOff            TimeOff[]
+  runs               Run[]
+  assignments        Assignment[]
+  recommendations    Recommendation[]
+  pings              LocationPing[]
+}
+
+model Vehicle {
+  id               String    @id
+  operatorId       String
+  operator         Operator  @relation(fields: [operatorId], references: [id])
+  driverId         String?
+  driver           Driver?   @relation("VehicleDriver", fields: [driverId], references: [id])
+  plate            String    @unique
+  make             String
+  model            String
+  year             Int
+  color            String
+  type             String
+  seatCapacity     Int
+  ladiesLicensed   Boolean   @default(false)
+  wheelchair       Boolean   @default(false)
+  status           String    @default("active")
+  mulkiyaRef       String?
+  insurancePolicy  String?
+  insuranceExpiry  DateTime?
+  createdAt        DateTime  @default(now())
+  runs             Run[]
+  assignments      Assignment[]
+  recommendations  Recommendation[]
+}
+
+model Document {
+  id         String    @id
+  ownerType  String
+  ownerId    String
+  type       String
+  identifier String?
+  category   String?
+  issueDate  String?
+  expiryDate String?
+  status     String    @default("submitted")
+  fileUrl    String?
+  reviewerId String?
+  reviewedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([ownerType, ownerId])
+}
+
+model ShiftTemplate {
+  id        String @id
+  driverId  String
+  driver    Driver @relation(fields: [driverId], references: [id])
+  days      String
+  label     String
+  startTime String
+  endTime   String
+}
+
+model TimeOff {
+  id       String @id
+  driverId String
+  driver   Driver @relation(fields: [driverId], references: [id])
+  date     String
+  reason   String
+}
+
+model Customer {
+  id               String           @id
+  fullName         String
+  phone            String           @unique
+  email            String?
+  language         String           @default("en")
+  gender           String           @default("unspecified")
+  photoUrl         String?
+  corporateId      String?
+  corporate        CorporateAccount? @relation(fields: [corporateId], references: [id])
+  emergencyName    String?
+  emergencyPhone   String?
+  acquiredVia      String           @default("app")
+  status           String           @default("active")
+  payerType        String           @default("self")
+  deletedAt        DateTime?
+  createdAt        DateTime         @default(now())
+  places           SavedPlace[]
+  preference       Preference?
+  subscriptions    CommuteSubscription[]
+  bookings         Booking[]
+  invoices         Invoice[]
+}
+
+model Preference {
+  id            String   @id
+  customerId    String   @unique
+  customer      Customer @relation(fields: [customerId], references: [id])
+  womenOnly     Boolean  @default(false)
+  vehicleType   String?
+  accessibility String?
+  walkRadiusM   Int      @default(600)
+  quietRide     Boolean  @default(false)
+  notes         String?
+}
+
+model SavedPlace {
+  id            String   @id
+  customerId    String
+  customer      Customer @relation(fields: [customerId], references: [id])
+  kind          String
+  label         String
+  address       String
+  lat           Float
+  lng           Float
+  entranceNote  String?
+  snappedStopId String?
+}
+
+model CommuteSubscription {
+  id            String   @id
+  customerId    String
+  customer      Customer @relation(fields: [customerId], references: [id])
+  routeId       String
+  route         Route    @relation(fields: [routeId], references: [id])
+  pickupStopId  String
+  dropStopId    String
+  days          String
+  morningWindow String
+  eveningWindow String
+  startDate     String
+  endDate       String?
+  product       String
+  status        String
+  priceAed      Int
+  womenOnly     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+}
+
+model Route {
+  id                   String   @id
+  slug                 String   @unique
+  nameEn               String
+  nameAr               String
+  summaryEn            String
+  summaryAr            String
+  detailEn             String
+  detailAr             String
+  seatPriceAed         Int
+  monthlyPriceAed      Int
+  morningTimetableEn   String
+  morningTimetableAr   String
+  eveningTimetableEn   String
+  eveningTimetableAr   String
+  womenOnlyAvailable   Boolean  @default(false)
+  active               Boolean  @default(true)
+  stops                Stop[]
+  subscriptions        CommuteSubscription[]
+  runs                 Run[]
+  clusters             Cluster[]
+}
+
+model Stop {
+  id          String @id
+  routeId     String
+  route       Route  @relation(fields: [routeId], references: [id])
+  slug        String
+  nameEn      String
+  nameAr      String
+  lat         Float
+  lng         Float
+  sequence    Int
+  emirate     String
+  landmarkEn  String
+  landmarkAr  String
+
+  @@unique([routeId, slug])
+}
+
+model Cluster {
+  id            String           @id
+  serviceDate   String
+  shift         String
+  routeId       String
+  route         Route            @relation(fields: [routeId], references: [id])
+  customerIds   String
+  stopIds       String
+  requiredSeats Int
+  womenOnly     Boolean          @default(false)
+  wheelchair    Boolean          @default(false)
+  status        String
+  createdAt     DateTime         @default(now())
+  recommendations Recommendation[]
+  assignments   Assignment[]
+
+  @@index([serviceDate, shift])
+}
+
+model Recommendation {
+  id           String  @id
+  clusterId    String
+  cluster      Cluster @relation(fields: [clusterId], references: [id])
+  driverId     String
+  driver       Driver  @relation(fields: [driverId], references: [id])
+  vehicleId    String?
+  vehicle      Vehicle? @relation(fields: [vehicleId], references: [id])
+  rank         Int
+  score        Float
+  breakdown    String
+  eligible     Boolean
+  rejectReason String?
+  createdAt    DateTime @default(now())
+}
+
+model Assignment {
+  id           String   @id
+  clusterId    String?
+  cluster      Cluster? @relation(fields: [clusterId], references: [id])
+  driverId     String
+  driver       Driver   @relation(fields: [driverId], references: [id])
+  vehicleId    String
+  vehicle      Vehicle  @relation(fields: [vehicleId], references: [id])
+  routeId      String
+  source       String
+  reason       String?
+  assignedById String?
+  serviceDate  String
+  shift        String
+  status       String
+  locked       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  runs         Run[]
+}
+
+model Run {
+  id           String      @id
+  assignmentId String?
+  assignment   Assignment? @relation(fields: [assignmentId], references: [id])
+  routeId      String
+  route        Route       @relation(fields: [routeId], references: [id])
+  driverId     String
+  driver       Driver      @relation(fields: [driverId], references: [id])
+  vehicleId    String
+  vehicle      Vehicle     @relation(fields: [vehicleId], references: [id])
+  serviceDate  String
+  shift        String
+  status       String
+  startedAt    DateTime?
+  endedAt      DateTime?
+  delayNote    String?
+  createdAt    DateTime    @default(now())
+  bookings     Booking[]
+  stopEvents   StopEvent[]
+  boardings    Boarding[]
+
+  @@unique([driverId, serviceDate, shift])
+  @@index([serviceDate, shift])
+}
+
+model Booking {
+  id           String    @id
+  customerId   String
+  customer     Customer  @relation(fields: [customerId], references: [id])
+  runId        String?
+  run          Run?      @relation(fields: [runId], references: [id])
+  routeId      String
+  serviceDate  String
+  shift        String
+  windowLabel  String
+  pickupStopId String
+  dropStopId   String
+  product      String
+  priceAed     Int
+  status       String
+  pin          String?
+  shareToken   String?   @unique
+  womenOnly    Boolean   @default(false)
+  invoiceId    String?
+  rating       Int?
+  ratingComment String?
+  createdAt    DateTime  @default(now())
+  boardings    Boarding[]
+
+  @@index([customerId, serviceDate])
+}
+
+model StopEvent {
+  id               String    @id
+  runId            String
+  run              Run       @relation(fields: [runId], references: [id])
+  stopId           String
+  sequence         Int
+  plannedOffsetMin Int
+  arrivedAt        DateTime?
+  status           String
+}
+
+model Boarding {
+  id         String   @id
+  runId      String
+  run        Run      @relation(fields: [runId], references: [id])
+  bookingId  String
+  booking    Booking  @relation(fields: [bookingId], references: [id])
+  customerId String
+  stopId     String
+  method     String
+  result     String
+  at         DateTime @default(now())
+}
+
+model Invoice {
+  id          String            @id
+  customerId  String?
+  customer    Customer?         @relation(fields: [customerId], references: [id])
+  corporateId String?
+  corporate   CorporateAccount? @relation(fields: [corporateId], references: [id])
+  amountAed   Int
+  vatAed      Int               @default(0)
+  currency    String            @default("AED")
+  status      String
+  description String
+  dueDate     String
+  note        String?
+  createdAt   DateTime          @default(now())
+  payments    Payment[]
+  credits     CreditNote[]
+}
+
+model Payment {
+  id            String   @id
+  invoiceId     String
+  invoice       Invoice  @relation(fields: [invoiceId], references: [id])
+  amountAed     Int
+  status        String
+  last4         String
+  processorRef  String
+  method        String
+  createdAt     DateTime @default(now())
+}
+
+model CreditNote {
+  id        String   @id
+  invoiceId String
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id])
+  amountAed Int
+  reason    String
+  createdAt DateTime @default(now())
+}
+
+model Payout {
+  id           String    @id
+  operatorId   String
+  operator     Operator  @relation(fields: [operatorId], references: [id])
+  period       String
+  amountAed    Int
+  status       String
+  approvedById String?
+  note         String?
+  createdAt    DateTime  @default(now())
+}
+
+model Ticket {
+  id            String   @id
+  subject       String
+  body          String
+  requesterType String
+  requesterId   String?
+  assigneeId    String?
+  customerId    String?
+  driverId      String?
+  runId         String?
+  status        String
+  priority      String
+  kind          String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now())
+}
+
+model Note {
+  id         String   @id
+  entityType String
+  entityId   String
+  authorId   String?
+  authorName String
+  text       String
+  type       String
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+}
+
+model AuditEvent {
+  id         String   @id
+  actorId    String?
+  actorName  String?
+  action     String
+  entity     String
+  entityId   String
+  beforeJson String?
+  afterJson  String?
+  createdAt  DateTime @default(now())
+
+  @@index([entity, entityId])
+}
+
+model LocationPing {
+  id        String   @id
+  driverId  String
+  driver    Driver   @relation(fields: [driverId], references: [id])
+  lat       Float
+  lng       Float
+  source    String
+  createdAt DateTime @default(now())
+
+  @@index([driverId, createdAt])
+}
+
+model Communication {
+  id          String   @id
+  channel     String
+  template    String
+  toAddress   String
+  body        String
+  relatedType String?
+  relatedId   String?
+  status      String
+  createdAt   DateTime @default(now())
+}
+
+model OtpChallenge {
+  id        String   @id
+  phone     String
+  code      String
+  purpose   String
+  consumed  Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model ImportBatch {
+  id         String   @id
+  staffId    String
+  csvText    String
+  resultJson String
+  status     String
+  createdAt  DateTime @default(now())
+}

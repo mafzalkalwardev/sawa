@@ -1,0 +1,51 @@
+import Link from "next/link";
+import { Notice } from "@/components/notice";
+import { t } from "@/i18n/copy";
+import { requireRider } from "@/lib/auth";
+import { prisma } from "@/lib/db";
+import { saveProfile } from "@/server/actions/rider";
+
+export default async function ProfilePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { locale } = await params;
+  const query = await searchParams;
+  const customer = await requireRider(locale);
+  const pref = await prisma.preference.findUnique({ where: { customerId: customer.id } });
+  const m = t(locale);
+  const ar = locale === "ar";
+  return (
+    <>
+      <h1>{ar ? "ملفك" : "Your profile"}</h1>
+      <Notice locale={locale} code={query.error} />
+      <form className="stack" action={saveProfile}>
+        <input type="hidden" name="locale" value={locale} />
+        <label>{m.name}<input name="fullName" defaultValue={customer.fullName} required /></label>
+        <label>{m.email}<input name="email" type="email" defaultValue={customer.email ?? ""} /></label>
+        <label>{ar ? "الجنس" : "Gender"}
+          <select name="gender" defaultValue={customer.gender}>
+            <option value="unspecified">{ar ? "غير محدد" : "Unspecified"}</option>
+            <option value="female">{ar ? "أنثى" : "Female"}</option>
+            <option value="male">{ar ? "ذكر" : "Male"}</option>
+          </select>
+        </label>
+        <label>{ar ? "طوارئ" : "Emergency name"}<input name="emergencyName" defaultValue={customer.emergencyName ?? ""} /></label>
+        <label>{ar ? "هاتف الطوارئ" : "Emergency phone"}<input name="emergencyPhone" defaultValue={customer.emergencyPhone ?? ""} /></label>
+        <label className="row"><input type="checkbox" name="womenOnly" defaultChecked={pref?.womenOnly} /> {m.womenOnly}</label>
+        <label className="row"><input type="checkbox" name="quietRide" defaultChecked={pref?.quietRide} /> {ar ? "رحلة هادئة" : "Quiet ride"}</label>
+        <label>{ar ? "إتاحة" : "Access"}
+          <select name="accessibility" defaultValue={pref?.accessibility ?? ""}>
+            <option value="">{ar ? "لا شيء" : "None"}</option>
+            <option value="wheelchair">{ar ? "كرسي متحرك" : "Wheelchair"}</option>
+          </select>
+        </label>
+        <button className="btn" type="submit">{m.save}</button>
+      </form>
+      <p><Link href={`/${locale}/privacy`}>{m.privacy}</Link></p>
+    </>
+  );
+}
