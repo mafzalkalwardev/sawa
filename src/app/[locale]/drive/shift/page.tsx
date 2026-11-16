@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { LocationPublisher } from "@/components/location-publisher";
 import { Notice } from "@/components/notice";
 import { t } from "@/i18n/copy";
@@ -61,6 +62,7 @@ export default async function ShiftPage({
               <article key={booking.id} className="card">
                 <h2>{booking.customer.fullName}</h2>
                 <p>{booking.status === "boarded" ? (ar ? "في المركبة" : "On the van") : booking.status === "no_show" ? (ar ? "لم يحضر" : "Didn't show") : booking.status === "completed" ? (ar ? "نزل" : "Dropped off") : (ar ? "ينتظر عند الموقف" : "Waiting at the stop")} · {ar ? stopName.get(booking.pickupStopId)?.nameAr : stopName.get(booking.pickupStopId)?.nameEn}</p>
+                <p><Link href={`/${locale}/drive/call/${booking.id}`}>{ar ? "اتصل دون إظهار الرقم" : "Call without showing the number"}</Link></p>
                 {booking.status === "confirmed" ? (
                   <form action={markNoShow}>
                     <input type="hidden" name="locale" value={locale} />

@@ -8,6 +8,7 @@ import { normalizePhone } from "@/lib/phone";
 import { verifyPassword } from "@/lib/password";
 import { DEMO_OTP } from "@/lib/time";
 import { audit } from "@/server/records";
+import { ensureReferralCode } from "@/server/wallet";
 
 function surface(mode: string) {
   return mode === "driver" ? "drive" : "ride";
@@ -56,6 +57,13 @@ export async function joinRider(formData: FormData) {
   if (existing && existing.status !== "deleted" && existing.fullName && existing.photoUrl && existing.idDocumentUrl) {
     redirect(`/${locale}/ride/login?error=exists`);
   }
+  const code = String(formData.get("referral") || "").trim().toUpperCase();
+  let referredById: string | null = null;
+  if (code) {
+    const referrer = await prisma.customer.findUnique({ where: { referralCode: code } });
+    if (!referrer || referrer.phone === phone || referrer.status === "deleted") redirect(`${base}?error=referral`);
+    referredById = referrer.id;
+  }
   const customer = existing ?? await prisma.customer.create({
     data: {
       id: nid("cus"),
@@ -63,12 +71,16 @@ export async function joinRider(formData: FormData) {
       phone,
       language: locale === "ar" ? "ar" : "en",
       status: "active",
+      referredById,
       preference: { create: { id: nid("pref") } },
     },
   });
   if (existing?.status === "deleted") {
-    await prisma.customer.update({ where: { id: existing.id }, data: { status: "active", deletedAt: null } });
+    await prisma.customer.update({ where: { id: existing.id }, data: { status: "active", deletedAt: null, referredById: existing.referredById ?? referredById } });
+  } else if (existing && !existing.referredById && referredById) {
+    await prisma.customer.update({ where: { id: existing.id }, data: { referredById } });
   }
+  await ensureReferralCode(customer.id);
   await setSession({ kind: "rider", id: customer.id });
   redirect(`/${locale}/ride/profile`);
 }

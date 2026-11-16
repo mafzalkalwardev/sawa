@@ -17,6 +17,8 @@ export default async function RiderRequest({
   const ar = locale === "ar";
   const request = await prisma.rideRequest.findFirst({ where: { id, customerId: customer.id } });
   if (!request) notFound();
+  const pool = request.poolId ? await prisma.pool.findUnique({ where: { id: request.poolId }, include: { requests: true } }) : null;
+  const riding = pool?.requests.filter((item) => item.status !== "ordered").length ?? 0;
   const route = await prisma.route.findUnique({ where: { id: request.routeId } });
   const pickup = await prisma.stop.findUnique({ where: { id: request.pickupStopId } });
   const drop = await prisma.stop.findUnique({ where: { id: request.dropStopId } });
@@ -34,6 +36,7 @@ export default async function RiderRequest({
       <h1>{route ? (ar ? route.nameAr : route.nameEn) : ""}</h1>
       <p>{pickup ? (ar ? pickup.nameAr : pickup.nameEn) : ""} → {drop ? (ar ? drop.nameAr : drop.nameEn) : ""}</p>
       <p>{request.product === "monthly" ? (ar ? "شهري" : "Monthly") : (ar ? "يوم واحد" : "One day")} · {request.windowLabel}</p>
+      {pool ? <p className="card">{ar ? `${riding} من ${pool.seats} مقاعد في هذه المركبة. السعر ينقص ما دام المقعد بانتظار سائق.` : `${riding} of ${pool.seats} seats are in this van. The price falls while a seat is still waiting for a driver.`}</p> : null}
       {request.status === "queued" ? <p className="card">{ar ? "بانتظار سائق على هذا الممر." : "Waiting for a driver on this corridor."}</p> : null}
       {driver ? <h2>{driver.displayName}</h2> : null}
       {request.offerAed ? <p className="price">{request.offerAed} AED</p> : null}

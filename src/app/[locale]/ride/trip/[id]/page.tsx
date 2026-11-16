@@ -9,6 +9,8 @@ import { headers } from "next/headers";
 import { cancelBooking, sendSos } from "@/server/actions/rider";
 import { LiveRefresh } from "@/components/live-refresh";
 import { RateForm } from "@/components/rate-form";
+import { CallBox } from "@/components/call-box";
+import { answerSplit, offerSplit, payFromWallet } from "@/server/actions/money";
 import { awayFromRoadKm, drive, onRoad } from "@/server/routing";
 
 export default async function TripPage({
@@ -26,6 +28,12 @@ export default async function TripPage({
     include: { run: { include: { driver: true, vehicle: true, route: { include: { stops: { orderBy: { sequence: "asc" } } } } } } },
   });
   if (!booking) notFound();
+  const companions = booking.runId
+    ? await prisma.booking.findMany({ where: { runId: booking.runId, status: { not: "cancelled" }, customerId: { not: customer.id } }, include: { customer: true } })
+    : [];
+  const splits = booking.runId
+    ? await prisma.fareSplit.findMany({ where: { runId: booking.runId, status: "offered", OR: [{ fromCustomerId: customer.id }, { toCustomerId: customer.id }] } })
+    : [];
   const pickup = await prisma.stop.findUnique({ where: { id: booking.pickupStopId } });
   const drop = await prisma.stop.findUnique({ where: { id: booking.dropStopId } });
   const m = t(locale);
@@ -91,6 +99,37 @@ export default async function TripPage({
       <p>{booking.windowLabel} · {booking.rideMode === "private" ? (ar ? "أنا فقط" : "Just me") : (ar ? "شارك المركبة" : "Share the van")} · {booking.priceAed} AED</p>
       <p className="muted">{ar ? "المبلغ المتفق عليه مع السائق." : "The amount agreed with the driver."}</p>
       {booking.product === "monthly" ? <p className="muted">{ar ? "تتكرر من الأحد إلى الخميس. أوقفها من تبويب الشهر." : "This repeats Sunday to Thursday. Pause it from Month."}</p> : null}
+      {booking.walletPaidAed > 0 ? <p>{ar ? `دُفع ${booking.walletPaidAed} درهم من المحفظة.` : `AED ${booking.walletPaidAed} paid from the wallet.`}</p> : null}
+      {booking.walletPaidAed < booking.priceAed && booking.status !== "cancelled" ? (
+        <form action={payFromWallet}>
+          <input type="hidden" name="locale" value={locale} />
+          <input type="hidden" name="bookingId" value={booking.id} />
+          <button className="btn" type="submit">{ar ? `ادفع ${booking.priceAed - booking.walletPaidAed} درهم من المحفظة` : `Pay AED ${booking.priceAed - booking.walletPaidAed} from the wallet`}</button>
+        </form>
+      ) : null}
+      {booking.run && driver ? <CallBox bookingId={booking.id} locale={locale} /> : null}
+      {splits.filter((split) => split.toCustomerId === customer.id).map((split) => (
+        <form key={split.id} className="card stack" action={answerSplit}>
+          <input type="hidden" name="locale" value={locale} />
+          <input type="hidden" name="splitId" value={split.id} />
+          <p>{ar ? `راكب يريد أن تدفع ${split.amountAed} درهم من أجرته.` : `A passenger wants you to pay AED ${split.amountAed} of their fare.`}</p>
+          <button className="btn" name="answer" value="yes" type="submit">{ar ? "أقبل الجزء" : "I'll take that part"}</button>
+          <button className="btn ghost" name="answer" value="no" type="submit">{ar ? "لا" : "No"}</button>
+        </form>
+      ))}
+      {booking.rideMode === "shared" && companions.length && booking.walletPaidAed < booking.priceAed ? (
+        <form className="stack" action={offerSplit}>
+          <input type="hidden" name="locale" value={locale} />
+          <input type="hidden" name="bookingId" value={booking.id} />
+          <label>{ar ? "اقسم الأجرة مع" : "Split the fare with"}
+            <select name="toCustomerId">
+              {companions.map((item) => <option key={item.id} value={item.customerId}>{item.customer.fullName.split(" ")[0]}</option>)}
+            </select>
+          </label>
+          <label>{ar ? "المبلغ" : "Amount"}<input name="amount" type="number" min="1" max={booking.priceAed - 1} required /></label>
+          <button className="btn ghost" type="submit">{ar ? "اطلب التقسيم" : "Ask to split"}</button>
+        </form>
+      ) : null}
       {booking.status === "completed" && booking.rating == null ? <RateForm locale={locale} bookingId={booking.id} next={`/${locale}/ride/trip/${booking.id}`} /> : null}
       {booking.rating ? <p>{ar ? `تقييمك ${booking.rating} من 5.` : `You gave ${booking.rating} out of 5.`}</p> : null}
       {booking.run ? <p><Link className="btn" href={`/${locale}/ride/chat/${booking.id}`}>{ar ? "محادثة السائق" : "Chat with the driver"}</Link></p> : null}

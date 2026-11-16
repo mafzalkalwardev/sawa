@@ -47,6 +47,8 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           </div>
           <div className="row">
             <a className="btn" href="/sawa.apk">{ar ? "تنزيل تطبيق أندرويد" : "Download the Android app"}</a>
+            <a className="btn ghost" href="/sawa-store.apk">{ar ? "نسخة المتجر المنفصلة" : "Separate store build"}</a>
+            <p className="muted">{ar ? "نسخة المتجر تطبيق منفصل يُثبَّت بجانب تطبيق التجربة. ليست على متجر جوجل." : "The store build is a separate app that installs beside the test app. It is not on Google Play."}</p>
           </div>
         </div>
       </section>

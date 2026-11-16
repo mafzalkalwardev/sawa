@@ -72,9 +72,15 @@ This build is not submitted to Google Play or the App Store. When a UAE entity i
 
 Keep the Prisma schema. Move `DATABASE_URL` to Postgres with PostGIS in AWS `me-central-1` or Azure UAE. Swap the demo OTP for a UAE sender ID, and the test card for a local acquirer (Checkout.com, Network International, Telr, or PayTabs — confirm onboarding). Replace the haversine adapter with Google Routes or a self-hosted OSRM/Valhalla instance before promising peak ETAs on E11 and E311. UAE Pass stays a later identity link; do not block the product on it.
 
-## Phase 2, not in this build
+## Now in this build
 
-On-demand dynamic pooling, referrals, stored wallet, split fare, masked calls, WhatsApp campaigns, and a separate native store binary. The web app is a PWA so the same flows install on a phone.
+- Shared rides on the same road, day, and time join one open van of 4. The listed seat price falls as seats fill, until someone agrees a price.
+- A passenger can share a referral code. Both wallets receive AED 20 when the new passenger's first ride is confirmed.
+- The wallet stores that balance. Adding money uses the test card `4242…`. A confirmed fare can be paid from the balance.
+- Two passengers on the same van can split one fare. The other person accepts or declines.
+- Call stays inside the ride. Phone numbers are not shown. Both people need the ride open, and a microphone. This is not a carrier masked-number service.
+- Staff can prepare a WhatsApp message for passengers who opted in. Each send opens WhatsApp. It is not marked delivered.
+- `sawa-store.apk` is a separate Android application id (`dev.sawa.store`) so it installs beside the test app. It is not listed on Google Play.
 
 ## Licence
 

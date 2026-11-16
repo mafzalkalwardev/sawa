@@ -27,3 +27,13 @@
 **Accepted driver.** A driver whose Emirates ID, licence, permit, and insurance have been accepted, so they can start a shift.
 
 **Every working day.** A ride that repeats Sunday to Thursday at the agreed fare. Pause means the passenger is not expected until they start it again. Today's confirmed ride stays.
+
+**Open van.** A shared ride that other passengers on the same road, day, and time can join, up to four seats.
+
+**Referral.** A passenger's code. Both people receive wallet credit when the new passenger's first ride is confirmed.
+
+**Wallet.** A stored balance that can pay an agreed fare.
+
+**Split fare.** One passenger asks another person on the same van to take part of the fare.
+
+**Call.** Voice inside the ride. The mobile numbers stay hidden.

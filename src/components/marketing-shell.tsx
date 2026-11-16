@@ -35,6 +35,7 @@ export async function MarketingShell({ locale, children }: { locale: string; chi
             <Link href={`/${locale}/privacy`}>{m.privacy}</Link>
             <Link href={`/${locale}/terms`}>{m.terms}</Link>
             <a href="/sawa.apk">{locale === "ar" ? "تطبيق أندرويد" : "Android app"}</a>
+            <a href="/sawa-store.apk">{locale === "ar" ? "نسخة المتجر" : "Store build"}</a>
             <Link href={`/${locale}/drive/login`}>{m.driveApp}</Link>
             <Link href={`/${locale}/ops/login`}>{m.staffLogin}</Link>
           </nav>

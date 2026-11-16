@@ -82,6 +82,7 @@ const en = {
   dashboard: "Dashboard",
   drivers: "Drivers",
   customers: "Riders",
+  campaigns: "WhatsApp",
   vehicles: "Vehicles",
   routes: "Routes",
   reports: "Reports",
@@ -117,6 +118,10 @@ const en = {
     pin: "That PIN is not on this run.",
     forbidden: "Your role cannot do that.",
     weekend: "Friday and Saturday are outside the commuter week. Pick Sunday to Thursday.",
+    referral: "That referral code is not valid.",
+    wallet: "The wallet does not cover this fare.",
+    split: "That amount cannot be split.",
+    optin: "No passenger has asked for WhatsApp yet.",
   },
   ok: {
     paid: "Payment recorded.",
@@ -127,6 +132,8 @@ const en = {
     assigned: "Assignment confirmed.",
     sent: "Message received.",
     boarded: "Boarding recorded.",
+    wallet: "The wallet is updated.",
+    split: "The fare split is updated.",
   },
 };
 
@@ -214,6 +221,7 @@ const ar: typeof en = {
   dashboard: "اللوحة",
   drivers: "السائقون",
   customers: "الركاب",
+  campaigns: "واتساب",
   vehicles: "المركبات",
   routes: "المسارات",
   reports: "التقارير",
@@ -249,6 +257,10 @@ const ar: typeof en = {
     pin: "رمز الصعود غير موجود على هذه الرحلة.",
     forbidden: "صلاحيتك لا تسمح بهذا.",
     weekend: "الجمعة والسبت خارج أسبوع التنقل. اختر من الأحد إلى الخميس.",
+    referral: "رمز الدعوة غير صالح.",
+    wallet: "رصيد المحفظة لا يغطي هذه الأجرة.",
+    split: "لا يمكن تقسيم هذا المبلغ.",
+    optin: "لا يوجد راكب طلب واتساب بعد.",
   },
   ok: {
     paid: "سُجّل الدفع.",
@@ -259,6 +271,8 @@ const ar: typeof en = {
     assigned: "تم تأكيد التعيين.",
     sent: "وصلت الرسالة.",
     boarded: "سُجّل الصعود.",
+    wallet: "تم تحديث المحفظة.",
+    split: "تم تحديث تقسيم الأجرة.",
   },
 };
 

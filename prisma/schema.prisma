@@ -163,6 +163,10 @@ model Customer {
   emergencyName    String?
   emergencyPhone   String?
   acquiredVia      String           @default("app")
+  referralCode     String?          @unique
+  referredById     String?
+  whatsappOptIn    Boolean          @default(false)
+  walletBalanceAed Int              @default(0)
   status           String           @default("active")
   payerType        String           @default("self")
   deletedAt        DateTime?
@@ -356,6 +360,7 @@ model Booking {
   product      String
   rideMode     String    @default("shared")
   priceAed     Int
+  walletPaidAed Int      @default(0)
   status       String
   pin          String?
   shareToken   String?   @unique
@@ -524,6 +529,8 @@ model RideRequest {
   windowLabel   String
   product       String
   rideMode      String   @default("shared")
+  poolId        String?
+  pool          Pool?    @relation(fields: [poolId], references: [id])
   note          String?
   status        String
   offerAed      Int?
@@ -565,6 +572,92 @@ model OtpChallenge {
   consumed  Boolean  @default(false)
   expiresAt DateTime
   createdAt DateTime @default(now())
+}
+
+model Pool {
+  id          String        @id
+  routeId     String
+  serviceDate String
+  shift       String
+  windowLabel String
+  product     String
+  rideMode    String        @default("shared")
+  womenOnly   Boolean       @default(false)
+  seats       Int           @default(4)
+  listAed     Int
+  status      String
+  driverId    String?
+  createdAt   DateTime      @default(now())
+  requests    RideRequest[]
+
+  @@index([routeId, serviceDate, shift, status])
+}
+
+model WalletEntry {
+  id         String   @id
+  customerId String
+  amountAed  Int
+  reason     String
+  bookingId  String?
+  createdAt  DateTime @default(now())
+
+  @@index([customerId, createdAt])
+}
+
+model FareSplit {
+  id             String   @id
+  bookingId      String
+  runId          String
+  fromCustomerId String
+  toCustomerId   String
+  amountAed      Int
+  status         String
+  createdAt      DateTime @default(now())
+
+  @@index([runId, status])
+}
+
+model CallSession {
+  id         String    @id
+  bookingId  String
+  callerKind String
+  status     String
+  offer      String?
+  answer     String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  ice        CallIce[]
+
+  @@index([bookingId, createdAt])
+}
+
+model CallIce {
+  id        String      @id
+  sessionId String
+  session   CallSession @relation(fields: [sessionId], references: [id])
+  fromKind  String
+  candidate String
+  createdAt DateTime    @default(now())
+}
+
+model Campaign {
+  id         String               @id
+  staffId    String
+  body       String
+  createdAt  DateTime             @default(now())
+  recipients CampaignRecipient[]
+}
+
+model CampaignRecipient {
+  id         String   @id
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+  customerId String
+  phone      String
+  status     String
+  createdAt  DateTime @default(now())
+
+  @@index([campaignId])
 }
 
 model ImportBatch {

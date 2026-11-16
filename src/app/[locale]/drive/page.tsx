@@ -30,6 +30,7 @@ export default async function DriveHome({
   });
   const routes = await prisma.route.findMany();
   const people = await prisma.customer.findMany({ where: { id: { in: requests.map((item) => item.customerId) } } });
+  const pools = await prisma.pool.findMany({ where: { id: { in: requests.map((item) => item.poolId).filter((id): id is string => Boolean(id)) } } });
   const mine = driver.preferredRouteIds.split(",").map((item) => item.trim());
   const visible = requests.filter((item) => {
     const route = routes.find((entry) => entry.id === item.routeId);
@@ -60,18 +61,23 @@ export default async function DriveHome({
       {visible.map((item) => {
         const route = routes.find((entry) => entry.id === item.routeId);
         const person = people.find((entry) => entry.id === item.customerId);
+        const pool = pools.find((entry) => entry.id === item.poolId);
+        const mates = item.poolId ? visible.filter((entry) => entry.poolId === item.poolId && entry.status === "queued") : [item];
+        if (item.status === "queued" && item.poolId && mates[0]?.id !== item.id) return null;
+        const names = mates.map((entry) => people.find((personItem) => personItem.id === entry.customerId)?.fullName).filter(Boolean);
         return (
           <article key={item.id} className="card">
-            <p className="pill">{item.product === "monthly" ? (ar ? "شهري" : "Monthly") : (ar ? "يوم واحد" : "One day")} · {item.status === "queued" ? (ar ? "بانتظارك" : "Waiting") : item.status === "agreed" ? (ar ? "متفق" : "Agreed") : (ar ? "مقبول" : "Accepted")}</p>
-            {person?.photoUrl ? <img className="avatar" src={`/api/files/riders/${person.id}/${person.photoUrl}`} alt="" /> : null}
-            <h2>{person?.fullName || (ar ? "راكب" : "Rider")}</h2>
+            <p className="pill">{item.product === "monthly" ? (ar ? "شهري" : "Monthly") : (ar ? "يوم واحد" : "One day")} · {item.rideMode === "shared" ? (ar ? "فان مشترك" : "Shared van") : (ar ? "أنا فقط" : "Just me")} · {item.status === "queued" ? (ar ? "بانتظارك" : "Waiting") : item.status === "agreed" ? (ar ? "متفق" : "Agreed") : (ar ? "مقبول" : "Accepted")}</p>
+            {person?.photoUrl && mates.length === 1 ? <img className="avatar" src={`/api/files/riders/${person.id}/${person.photoUrl}`} alt="" /> : null}
+            <h2>{names.length > 1 ? names.join(" · ") : (person?.fullName || (ar ? "راكب" : "Rider"))}</h2>
             <p>{route ? (ar ? route.nameAr : route.nameEn) : ""} · {item.windowLabel}</p>
-            <p>{item.offerAed ? `${item.offerAed} AED` : ""}</p>
+            {pool && item.rideMode === "shared" ? <p>{ar ? `${mates.length} من ${pool.seats} مقاعد` : `${mates.length} of ${pool.seats} seats`}</p> : null}
+            <p>{mates.reduce((sum, entry) => sum + (entry.offerAed || 0), 0) ? `${mates.reduce((sum, entry) => sum + (entry.offerAed || 0), 0)} AED` : ""}</p>
             {item.status === "queued" ? (
               <form action={acceptRequest}>
                 <input type="hidden" name="locale" value={locale} />
                 <input type="hidden" name="requestId" value={item.id} />
-                <button className="btn" type="submit">{ar ? "أقبل هذه الرحلة" : "I'll take this ride"}</button>
+                <button className="btn" type="submit">{mates.length > 1 ? (ar ? "أقبل هذه المركبة" : "I'll take this van") : (ar ? "أقبل هذه الرحلة" : "I'll take this ride")}</button>
               </form>
             ) : (
               <Link className="btn" href={`/${locale}/drive/requests/${item.id}`}>{ar ? "افتح الرحلة" : "Open this ride"}</Link>

@@ -8,6 +8,7 @@ const links = [
   ["/trips", "trips"],
   ["/drivers", "drivers"],
   ["/customers", "customers"],
+  ["/campaigns", "campaigns"],
   ["/vehicles", "vehicles"],
   ["/routes", "routes"],
   ["/tickets", "tickets"],
