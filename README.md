@@ -82,6 +82,54 @@ Keep the Prisma schema. Move `DATABASE_URL` to Postgres with PostGIS in AWS `me-
 - Staff can prepare a WhatsApp message for passengers who opted in. Each send opens WhatsApp. It is not marked delivered.
 - `sawa-store.apk` is a separate Android application id (`dev.sawa.store`) so it installs beside the test app. It is not listed on Google Play.
 
+## Two phones, 16 November 2026
+
+Infinix X697 signed in as the driver (Omar, Sharjah–Dubai, already on shift). Pixel 7a stayed the passenger and booked a shared seat: Rolla Square to Al Fahidi, morning 7:00–8:10, one day, 103 AED. Both phones ran the installed app against https://sawa.induswebagency.com. The full set of step frames is in `docs/walkthrough`. Two frames of the driver queue are kept only on the machine that ran the test, because they show the passenger's uploaded profile photo.
+
+The passenger asked for the seat. The open van showed 1 of 4, and the driver agreed 103 AED.
+
+![Passenger home](docs/walkthrough/08-pixel-home.png)
+
+![Sharjah–Dubai quote, 103 AED to share the van](docs/walkthrough/12-pixel-sharjah.png)
+
+![Waiting, 1 of 4 seats](docs/walkthrough/14-pixel-request.png)
+
+![Driver home, on shift, Sharjah–Dubai](docs/walkthrough/07-infinix-driver-home.png)
+
+![Driver agrees 103 AED](docs/walkthrough/19-infinix-agree.png)
+
+The driver sent “On my way” and confirmed the seat. The passenger answered “See you at Rolla” on that same request. Those two lines stayed on the request. The ride chat opened after confirm is a different thread and was empty.
+
+![Confirm, with the driver's message](docs/walkthrough/24-infinix-confirm.png)
+
+![Passenger sees the message, and the seat count has dropped to 0 of 4](docs/walkthrough/26-pixel-after-confirm.png)
+
+![Ride chat after confirm, with none of the earlier messages](docs/walkthrough/58-pixel-chat.png)
+
+The home card showed pickup number 1643 and plate D 44021. The driver entered 1643 and the app recorded boarding. The phone was not on the corridor, so the van stayed on the mapped route.
+
+![Pickup number on the passenger home](docs/walkthrough/32-pixel-reloaded.png)
+
+![Boarding recorded](docs/walkthrough/38-infinix-boarded.png)
+
+Both phones opened the in-app call. No phone number was shown. Each side reached “The call is open.” When the driver hung up, his screen returned to Call, and the passenger stayed on “The call is open” until he hung up himself.
+
+![Driver, call open](docs/walkthrough/45-infinix-answered.png)
+
+![Passenger, call open](docs/walkthrough/46-pixel-in-call.png)
+
+Paying 103 AED from the wallet failed honestly: the balance was 0. “Everyone is dropped off” finished the run and ended the shift. The other three seats on that van were still waiting. History then counted all four fares, including a 0 AED seat, as 303 AED. The passenger rated the ride 5 with the note “Smooth ride.”
+
+![Wallet does not cover the fare](docs/walkthrough/51-pixel-wallet.png)
+
+![Finished van in driver history](docs/walkthrough/53-infinix-dropped.png)
+
+![Passenger rated 5 out of 5](docs/walkthrough/57-pixel-rated.png)
+
+One load of the chat URL failed in the WebView with `net::ERR_NAME_NOT_RESOLVED`. Opening the app again reached the ride. The back key can also leave the app entirely.
+
+![WebView error, with no way back inside the app](docs/walkthrough/31-pixel-sawa.png)
+
 ## Licence
 
 All rights reserved. Demonstration software. Not legal advice.
