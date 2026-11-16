@@ -1,8 +1,7 @@
 import { Notice } from "@/components/notice";
-import { t } from "@/i18n/copy";
+import { RateForm } from "@/components/rate-form";
 import { requireRider } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { rateTrip } from "@/server/actions/rider";
 
 export default async function HistoryPage({
   params,
@@ -22,33 +21,23 @@ export default async function HistoryPage({
   });
   const routes = await prisma.route.findMany();
   const byId = new Map(routes.map((route) => [route.id, route]));
-  const m = t(locale);
   const ar = locale === "ar";
+  const words = (status: string) => status === "completed" ? (ar ? "وصلت" : "Arrived") : status === "boarded" ? (ar ? "في المركبة" : "On the van") : status === "cancelled" ? (ar ? "أُلغيت" : "Cancelled") : status === "no_show" ? (ar ? "لم تحضر" : "Didn't show") : (ar ? "مؤكدة" : "Confirmed");
   return (
     <>
-      <h1>{m.history}</h1>
+      <h1>{ar ? "رحلاتك" : "Your rides"}</h1>
       <Notice locale={locale} ok={query.ok} code={query.error} />
+      {bookings.length === 0 ? <p className="card">{ar ? "لا توجد رحلة بعد." : "No ride yet."}</p> : null}
       <div className="stack">
         {bookings.map((booking) => {
           const route = byId.get(booking.routeId);
           return (
             <article key={booking.id} className="card">
-              <h2>{route ? (ar ? route.nameAr : route.nameEn) : booking.routeId}</h2>
-              <p>{booking.serviceDate} · {booking.shift} · {booking.status}</p>
-              {booking.status === "completed" && booking.rating == null ? (
-                <form action={rateTrip}>
-                  <input type="hidden" name="locale" value={locale} />
-                  <input type="hidden" name="bookingId" value={booking.id} />
-                  <label>{ar ? "التقييم" : "Rating"}
-                    <select name="rating" defaultValue="5">
-                      {[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n}</option>)}
-                    </select>
-                  </label>
-                  <label>{ar ? "تعليق" : "Comment"}<input name="comment" /></label>
-                  <button className="btn small" type="submit">{m.save}</button>
-                </form>
-              ) : null}
-              {booking.rating ? <p>{booking.rating}/5</p> : null}
+              <h2>{route ? (ar ? route.nameAr : route.nameEn) : ""}</h2>
+              <p>{booking.serviceDate} · {booking.shift === "evening" ? (ar ? "مساء" : "Evening") : (ar ? "صباح" : "Morning")} · {words(booking.status)} · {booking.priceAed} AED</p>
+              {booking.run?.driver ? <p>{booking.run.driver.displayName}</p> : null}
+              {booking.status === "completed" && booking.rating == null ? <RateForm locale={locale} bookingId={booking.id} /> : null}
+              {booking.rating ? <p>{ar ? `تقييمك ${booking.rating} من 5` : `You gave ${booking.rating} out of 5`}</p> : null}
             </article>
           );
         })}

@@ -372,7 +372,7 @@ export async function rateTrip(formData: FormData) {
   const bookingId = String(formData.get("bookingId") || "");
   const rating = Number(formData.get("rating") || 0);
   const booking = await prisma.booking.findFirst({ where: { id: bookingId, customerId: customer.id }, include: { run: true } });
-  if (!booking?.run || rating < 1 || rating > 5) redirect(`/${locale}/ride/history?error=missing`);
+  if (!booking?.run || rating < 1 || rating > 5 || booking.status !== "completed") redirect(`/${locale}/ride/history?error=missing`);
   await prisma.booking.update({
     where: { id: booking.id },
     data: { rating, ratingComment: String(formData.get("comment") || "") || null },
@@ -380,7 +380,9 @@ export async function rateTrip(formData: FormData) {
   const rated = await prisma.booking.findMany({ where: { run: { driverId: booking.run.driverId }, rating: { not: null } } });
   const avg = rated.reduce((sum, item) => sum + (item.rating || 0), 0) / Math.max(1, rated.length);
   await prisma.driver.update({ where: { id: booking.run.driverId }, data: { ratingAvg: Math.round(avg * 10) / 10 } });
-  redirect(`/${locale}/ride/history?ok=saved`);
+  const next = String(formData.get("next") || "");
+  const safe = next.startsWith(`/${locale}/ride/`) && !next.includes("://") && !next.includes("//") ? next : `/${locale}/ride/history`;
+  redirect(`${safe}${safe.includes("?") ? "&" : "?"}ok=saved`);
 }
 
 export async function openTicket(formData: FormData) {

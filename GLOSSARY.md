@@ -21,3 +21,7 @@
 **Today's van.** The driver's list of people for the confirmed ride that day.
 
 **On the van.** The driver has typed the passenger's pickup number.
+
+**Rating.** The number from 1 to 5 a passenger gives after the ride is finished.
+
+**Accepted driver.** A driver whose Emirates ID, licence, permit, and insurance have been accepted, so they can start a shift.

@@ -8,6 +8,7 @@ import { prisma } from "@/lib/db";
 import { headers } from "next/headers";
 import { cancelBooking, sendSos } from "@/server/actions/rider";
 import { LiveRefresh } from "@/components/live-refresh";
+import { RateForm } from "@/components/rate-form";
 import { awayFromRoadKm, drive, onRoad } from "@/server/routing";
 
 export default async function TripPage({
@@ -89,6 +90,8 @@ export default async function TripPage({
       <p>{pickup ? (ar ? pickup.nameAr : pickup.nameEn) : ""} → {drop ? (ar ? drop.nameAr : drop.nameEn) : ""}</p>
       <p>{booking.windowLabel} · {booking.rideMode === "private" ? (ar ? "أنا فقط" : "Just me") : (ar ? "شارك المركبة" : "Share the van")} · {booking.priceAed} AED</p>
       <p className="muted">{ar ? "المبلغ المتفق عليه مع السائق." : "The amount agreed with the driver."}</p>
+      {booking.status === "completed" && booking.rating == null ? <RateForm locale={locale} bookingId={booking.id} next={`/${locale}/ride/trip/${booking.id}`} /> : null}
+      {booking.rating ? <p>{ar ? `تقييمك ${booking.rating} من 5.` : `You gave ${booking.rating} out of 5.`}</p> : null}
       {booking.run ? <p><Link className="btn" href={`/${locale}/ride/chat/${booking.id}`}>{ar ? "محادثة السائق" : "Chat with the driver"}</Link></p> : null}
       {share ? <p><span>{m.share}</span><br /><a href={share}>{share}</a></p> : null}
       <form action={sendSos}>

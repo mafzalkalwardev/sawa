@@ -77,6 +77,51 @@ export async function reviewDriver(formData: FormData) {
   redirect(`/${locale}/ops/drivers/${driver.id}?ok=saved`);
 }
 
+export async function acceptDriverPapers(formData: FormData) {
+  const locale = String(formData.get("locale") || "en");
+  const staff = await requireStaff(locale, "drivers");
+  const driverId = String(formData.get("driverId") || "");
+  const driver = await prisma.driver.findUnique({ where: { id: driverId } });
+  if (!driver) back(locale, "/drivers", "error=missing");
+  const docs = await prisma.document.findMany({
+    where: {
+      OR: [
+        { ownerType: "driver", ownerId: driver.id },
+        ...(driver.defaultVehicleId ? [{ ownerType: "vehicle", ownerId: driver.defaultVehicleId }] : []),
+      ],
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  const today = new Date().toISOString().slice(0, 10);
+  const needed = [
+    { type: "emirates_id", ownerType: "driver", ownerId: driver.id },
+    { type: "licence", ownerType: "driver", ownerId: driver.id },
+    { type: "permit", ownerType: "driver", ownerId: driver.id },
+    ...(driver.defaultVehicleId ? [{ type: "insurance", ownerType: "vehicle", ownerId: driver.defaultVehicleId }] : []),
+  ];
+  const picked = [];
+  for (const need of needed) {
+    const doc = docs.find((item) => item.type === need.type && item.ownerType === need.ownerType && item.ownerId === need.ownerId && item.fileUrl && item.status !== "rejected" && (!item.expiryDate || item.expiryDate >= today));
+    if (!doc) back(locale, `/drivers/${driver.id}`, "error=docs");
+    picked.push(doc);
+  }
+  const reviewedAt = new Date();
+  for (const doc of picked) {
+    await prisma.document.update({ where: { id: doc.id }, data: { status: "approved", reviewerId: staff.id, reviewedAt } });
+  }
+  await prisma.driver.update({ where: { id: driver.id }, data: { status: "approved" } });
+  await audit({
+    actorId: staff.id,
+    actorName: staff.name,
+    action: "driver.accept",
+    entity: "driver",
+    entityId: driver.id,
+    before: { status: driver.status },
+    after: { status: "approved" },
+  });
+  redirect(`/${locale}/ops/drivers/${driver.id}?ok=saved`);
+}
+
 export async function createCustomer(formData: FormData) {
   const locale = String(formData.get("locale") || "en");
   const staff = await requireStaff(locale, "customers");

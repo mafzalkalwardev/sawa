@@ -284,6 +284,11 @@ textarea { min-height: 110px; }
   box-shadow: 0 0 0 4px rgba(14, 42, 36, 0.08);
 }
 .phone .ticket { display: grid; gap: 10px; }
+.stars { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.stars label { position: relative; min-height: 52px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 16px; background: #fffdf8; cursor: pointer; transition: transform 180ms ease, background 180ms ease, color 180ms ease; }
+.stars input { position: absolute; opacity: 0; }
+.stars label:has(input:checked), .stars label:has(input:focus-visible) { background: var(--ink); color: #f4f1ea; }
+.stars label:active { transform: scale(0.98); }
 .steps { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; list-style: none; margin: 0 0 16px; padding: 0; }
 .steps li { display: grid; gap: 6px; color: var(--ink-soft); font-size: 0.72rem; }
 .steps span { display: block; height: 4px; border-radius: 99px; background: #e4dfd4; transition: background 280ms ease, transform 280ms ease; }

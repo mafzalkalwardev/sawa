@@ -3,7 +3,7 @@ import { MapView } from "@/components/map";
 import { Notice } from "@/components/notice";
 import { requireStaff } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { addStaffNote, reviewDriver } from "@/server/actions/ops";
+import { acceptDriverPapers, addStaffNote, reviewDriver } from "@/server/actions/ops";
 
 export default async function DriverDetail({
   params,
@@ -32,7 +32,7 @@ export default async function DriverDetail({
       <Notice locale={locale} ok={query.ok} code={query.error} />
       <p>{driver.phone} · {driver.operator.name} · {driver.operator.licenceRef}</p>
       <p><span className="tag">{driver.status}</span> {driver.onShift ? (ar ? "على الوردية" : "On shift") : ""}</p>
-      <p>{ar ? "دعوة التطبيق" : "App invite"}: {driver.phone} · OTP 123456 · /{locale}/drive/login</p>
+      <p>{ar ? "يدخل برقم الجوال هذا." : "They sign in with this mobile number."}</p>
       {points.length ? <MapView points={points} /> : null}
       <h2>{ar ? "المركبات" : "Vehicles"}</h2>
       <ul>{driver.vehicles.map((vehicle) => <li key={vehicle.id}>{vehicle.plate} · {vehicle.type} · {vehicle.seatCapacity} · {vehicle.ladiesLicensed ? "ladies" : "mixed"} · {vehicle.wheelchair ? "wheelchair" : ""}</li>)}</ul>
@@ -40,6 +40,13 @@ export default async function DriverDetail({
       <ul>{driver.shifts.map((shift) => <li key={shift.id}>{shift.label} {shift.startTime}-{shift.endTime} · {shift.days}</li>)}</ul>
       <h2>{ar ? "المستندات" : "Documents"}</h2>
       <ul>{docs.map((doc) => <li key={doc.id}>{doc.type} · {doc.status} · {doc.expiryDate || "—"} · {doc.identifier}</li>)}</ul>
+      {driver.status !== "approved" ? (
+        <form action={acceptDriverPapers}>
+          <input type="hidden" name="locale" value={locale} />
+          <input type="hidden" name="driverId" value={driver.id} />
+          <button className="btn" type="submit">{ar ? "اقبل الأوراق ودعه يقود" : "Accept the papers and let them drive"}</button>
+        </form>
+      ) : <p className="alert good">{ar ? "يمكنه بدء الوردية." : "They can start a shift."}</p>}
       <form className="row" action={reviewDriver}>
         <input type="hidden" name="locale" value={locale} />
         <input type="hidden" name="driverId" value={driver.id} />
