@@ -61,13 +61,13 @@ export function BookForm({ locale, routes, date, initialProduct = "single" }: { 
   return (
     <form className="stack" action={requestRide}>
       <input type="hidden" name="locale" value={locale} />
-      <label>{ar ? "الممر" : "Corridor"}
+      <label>{ar ? "أي طريق؟" : "Which road?"}
         <select name="routeId" value={routeId} onChange={(event) => setRouteId(event.target.value)}>
           {routes.map((item) => <option key={item.id} value={item.id}>{ar ? item.nameAr : item.nameEn}</option>)}
         </select>
       </label>
       <label>{m.date}<input type="date" name="serviceDate" value={serviceDate} onChange={(event) => setServiceDate(event.target.value)} required /></label>
-      <label>{ar ? "الوردية" : "Shift"}
+      <label>{ar ? "صباح أم مساء؟" : "Morning or evening?"}
         <select name="shift" value={shift} onChange={(event) => {
           const next = event.target.value as "morning" | "evening";
           setShift(next);
@@ -95,15 +95,15 @@ export function BookForm({ locale, routes, date, initialProduct = "single" }: { 
       <input type="hidden" name="rideMode" value={rideMode} />
       <div className="modes" role="group" aria-label={ar ? "نوع الرحلة" : "Ride type"}>
         <button type="button" className={rideMode === "shared" ? "on" : ""} onClick={() => setRideMode("shared")}>
-          <strong>{ar ? "مشترك" : "Shared"}</strong>
-          <span>{shared + sharedToll.chargedAed} AED</span>
+          <strong>{ar ? "شارك المركبة" : "Share the van"}</strong>
+          <span>{ar ? "مع ركاب آخرين · " : "With other passengers · "}{shared + sharedToll.chargedAed} AED</span>
         </button>
         <button type="button" className={rideMode === "private" ? "on" : ""} onClick={() => setRideMode("private")}>
-          <strong>{ar ? "مركبة وحدك" : "Vehicle alone"}</strong>
-          <span>{alone + aloneToll.chargedAed} AED</span>
+          <strong>{ar ? "أنا فقط" : "Just me"}</strong>
+          <span>{ar ? "المركبة لك · " : "The van is yours · "}{alone + aloneToll.chargedAed} AED</span>
         </button>
       </div>
-      <label>{ar ? "النوع" : "Product"}
+      <label>{ar ? "كم مرة؟" : "How often?"}
         <select name="product" value={product} onChange={(event) => setProduct(event.target.value)}>
           <option value="single">{m.single}</option>
           <option value="monthly">{m.monthly}</option>
@@ -121,7 +121,7 @@ export function BookForm({ locale, routes, date, initialProduct = "single" }: { 
         </ul>
       ) : <p className="muted">{ar ? "لا بوابة سالك أو درب بين هذين الموقفين." : "No Salik or Darb gate between these stops."}</p>}
       <label>{ar ? "ملاحظة للسائق" : "Note for the driver"}<input name="note" placeholder={ar ? "وقت الوصول، البوابة، عدد الحقائب" : "Arrival time, gate, bags"} /></label>
-      <button className="btn" type="submit">{ar ? "أدخل الطلب في الانتظار" : "Put this ride in the queue"}</button>
+      <button className="btn" type="submit">{ar ? "أرسل هذه الرحلة" : "Send this ride"}</button>
     </form>
   );
 }

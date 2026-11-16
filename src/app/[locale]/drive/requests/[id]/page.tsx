@@ -47,7 +47,7 @@ export default async function DriverRequest({
             <form action={createOrder}>
               <input type="hidden" name="locale" value={locale} />
               <input type="hidden" name="requestId" value={id} />
-              <button className="btn" type="submit">{ar ? "إنشاء الطلب" : "Create the order"}</button>
+              <button className="btn" type="submit">{ar ? "أكّد الرحلة" : "Confirm the ride"}</button>
             </form>
           ) : null}
         </>

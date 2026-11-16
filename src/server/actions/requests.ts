@@ -141,7 +141,8 @@ export async function createOrder(formData: FormData) {
   let run = await prisma.run.findFirst({
     where: { driverId: driver.id, serviceDate: request.serviceDate, shift: request.shift, status: { not: "cancelled" } },
   });
-  if (run && run.routeId !== request.routeId) redirect(`/${locale}/ride/requests/${id}?error=full`);
+  const back = session.kind === "driver" ? "drive" : "ride";
+  if (run && run.routeId !== request.routeId) redirect(`/${locale}/${back}/requests/${id}?error=full`);
   if (!run) {
     run = await createRun({
       routeId: request.routeId,

@@ -9,6 +9,7 @@ import { ensureServiceDay } from "@/server/service-day";
 import { startShift } from "@/server/actions/driver";
 import { acceptRequest } from "@/server/actions/requests";
 import { LiveRefresh } from "@/components/live-refresh";
+import { Steps, driverSteps } from "@/components/steps";
 
 export default async function DriveHome({
   params,
@@ -44,11 +45,12 @@ export default async function DriveHome({
   return (
     <>
       <LiveRefresh />
+      {driver.status === "approved" ? <Steps labels={driverSteps(ar)} current={3} /> : <Steps labels={driverSteps(ar)} current={2} />}
       <h1>{driver.displayName}</h1>
-      <p><span className={`tag ${driver.status === "approved" ? "good" : "warn"}`}>{driver.status}</span> {driver.onShift ? (ar ? "على الوردية" : "On shift") : (ar ? "خارج الوردية" : "Off shift")}</p>
+      <p><span className={`tag ${driver.status === "approved" ? "good" : "warn"}`}>{driver.status === "approved" ? (ar ? "مقبول" : "Approved") : driver.status === "submitted" ? (ar ? "بانتظار المراجعة" : "Waiting for review") : driver.status === "suspended" ? (ar ? "موقوف" : "Suspended") : driver.status}</span> {driver.onShift ? (ar ? "على الوردية" : "On shift") : (ar ? "خارج الوردية" : "Off shift")}</p>
       <Notice locale={locale} code={query.error} ok={query.ok} />
-      <h2>{ar ? "الانتظار" : "Queue"}</h2>
-      {visible.length === 0 ? <p className="card">{ar ? "لا توجد رحلة بانتظارك." : "No ride is waiting on your corridors."}</p> : null}
+      <h2>{ar ? "رحلات بانتظارك" : "Rides waiting for you"}</h2>
+      {visible.length === 0 ? <p className="card">{ar ? "لا توجد رحلة على طريقك الآن." : "No ride is waiting on your road right now."}</p> : null}
       {visible.map((item) => {
         const route = routes.find((entry) => entry.id === item.routeId);
         const person = people.find((entry) => entry.id === item.customerId);
@@ -63,10 +65,10 @@ export default async function DriveHome({
               <form action={acceptRequest}>
                 <input type="hidden" name="locale" value={locale} />
                 <input type="hidden" name="requestId" value={item.id} />
-                <button className="btn" type="submit">{ar ? "قبول الرحلة" : "Accept ride"}</button>
+                <button className="btn" type="submit">{ar ? "أقبل هذه الرحلة" : "I'll take this ride"}</button>
               </form>
             ) : (
-              <Link className="btn" href={`/${locale}/drive/requests/${item.id}`}>{ar ? "المحادثة والسعر" : "Chat and price"}</Link>
+              <Link className="btn" href={`/${locale}/drive/requests/${item.id}`}>{ar ? "افتح الرحلة" : "Open this ride"}</Link>
             )}
           </article>
         );

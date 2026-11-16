@@ -4,6 +4,7 @@ import { t } from "@/i18n/copy";
 import { requireRider } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { saveProfile } from "@/server/actions/rider";
+import { Steps, passengerSteps } from "@/components/steps";
 
 export default async function ProfilePage({
   params,
@@ -21,7 +22,9 @@ export default async function ProfilePage({
   const ar = locale === "ar";
   return (
     <>
-      <h1>{ar ? "ملفك" : "Your profile"}</h1>
+      <Steps labels={passengerSteps(ar)} current={2} />
+      <h1>{ar ? "صورتك وهويتك" : "Your photo and ID"}</h1>
+      <p className="muted">{ar ? "السائق يرى وجهك قبل أن يقبل الرحلة." : "The driver sees your face before accepting the ride."}</p>
       <Notice locale={locale} code={query.error} />
       <form className="stack" action={saveProfile}>
         <input type="hidden" name="locale" value={locale} />
@@ -49,7 +52,7 @@ export default async function ProfilePage({
             <option value="wheelchair">{ar ? "كرسي متحرك" : "Wheelchair"}</option>
           </select>
         </label>
-        <button className="btn" type="submit">{m.save}</button>
+        <button className="btn" type="submit">{customer.photoUrl && customer.idDocumentUrl ? m.save : (ar ? "متابعة" : "Continue")}</button>
       </form>
       <p><Link href={`/${locale}/privacy`}>{m.privacy}</Link></p>
     </>

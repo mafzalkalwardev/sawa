@@ -4,6 +4,7 @@ import { Notice } from "@/components/notice";
 import { t } from "@/i18n/copy";
 import { getSession } from "@/lib/auth";
 import { joinRider } from "@/server/actions/auth";
+import { Steps, passengerSteps } from "@/components/steps";
 
 export default async function RideSignup({
   params,
@@ -27,13 +28,14 @@ export default async function RideSignup({
         <Link className="lang" href={`/${ar ? "en" : "ar"}/ride/signup`}>{m.language}</Link>
       </header>
       <main>
-        <h1>{ar ? "إنشاء حساب راكب" : "Create a passenger account"}</h1>
-        <p className="muted">{ar ? "رقم هاتفك، ثم صورتك وهويتك." : "Your phone number, then your photo and Emirates ID."}</p>
+        <Steps labels={passengerSteps(ar)} current={1} />
+        <h1>{ar ? "ما رقم جوالك؟" : "What's your mobile number?"}</h1>
+        <p className="muted">{ar ? "بعدها نطلب صورتك وهويتك." : "Next we ask for your photo and Emirates ID."}</p>
         <Notice locale={locale} code={query.error} />
         <form className="stack" action={joinRider}>
           <input type="hidden" name="locale" value={locale} />
           <label>{m.phone}<input name="phone" inputMode="tel" autoComplete="tel" placeholder="050 000 0000" required /></label>
-          <button className="btn" type="submit">{ar ? "إنشاء الحساب" : "Create account"}</button>
+          <button className="btn" type="submit">{ar ? "متابعة" : "Continue"}</button>
         </form>
         <p className="muted"><Link href={`/${locale}/ride/login`}>{ar ? "لديك حساب؟ دخول الراكب" : "Already a passenger? Sign in"}</Link></p>
         <p className="muted"><Link href={`/${locale}/drive/signup`}>{ar ? "تريد القيادة؟ حساب سائق" : "Want to drive? Driver account"}</Link></p>

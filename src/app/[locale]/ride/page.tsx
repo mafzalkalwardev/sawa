@@ -65,12 +65,12 @@ export default async function RideHome({
         </section>
       ) : (
         <Link className="choice" href={`/${locale}/ride/book`}>
-          <span><strong>{ar ? "لا يوجد مقعد قادم" : "No upcoming seat"}</strong><span>{m.bookSeat}</span></span>
+          <span><strong>{ar ? "اطلب رحلة" : "Ask for a ride"}</strong><span>{ar ? "الطريق، الوقت، وهل تشارك المركبة" : "The road, the time, and whether you share the van"}</span></span>
           <strong>{ar ? "←" : "→"}</strong>
         </Link>
       )}
       <section className="stack" style={{ marginTop: 18 }}>
-        <h2>{ar ? "من على الممر اليوم" : "On the corridor today"}</h2>
+        <h2>{ar ? "السائقون على الطريق اليوم" : "Drivers out today"}</h2>
         {drivers.map((driver) => {
           const run = driver.runs[0];
           const vehicle = driver.vehicles.find((item) => item.id === driver.defaultVehicleId);
@@ -79,14 +79,14 @@ export default async function RideHome({
               <p className="eyebrow">{run ? (ar ? run.route.nameAr : run.route.nameEn) : driver.baseAddress}</p>
               <h2>{driver.displayName}</h2>
               <p>{vehicle?.plate} · {vehicle?.color} {vehicle?.model}</p>
-              <p className="muted">{ar ? "على هذا الممر الآن" : "Live on this corridor now"}</p>
+              <p className="muted">{ar ? "على الطريق الآن" : "On the road now"}</p>
               {run?.bookings.map((item) => (
                 <p key={item.id}>{item.customer.fullName} · {stopName(item.pickupStopId)} → {stopName(item.dropStopId)}{item.customerId === customer.id ? ` · ${ar ? "أنت" : "You"}` : ""}</p>
               ))}
             </article>
           );
         })}
-        <p className="muted">{ar ? `${seats.length} مقاعد متصلة` : `${seats.length} seats connected`}</p>
+        <p className="muted">{ar ? `${seats.length} رحلات محجوزة اليوم` : `${seats.length} rides booked today`}</p>
       </section>
       <section style={{ marginTop: 8 }}>
         {routes.map((route) => (

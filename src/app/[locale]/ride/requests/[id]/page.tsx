@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { agreeFare, createOrder, proposeFare } from "@/server/actions/requests";
 import { ChatBox } from "@/components/chat-box";
 import { LiveRefresh } from "@/components/live-refresh";
+import { Steps, passengerSteps } from "@/components/steps";
 
 export default async function RiderRequest({
   params,
@@ -21,14 +22,15 @@ export default async function RiderRequest({
   const drop = await prisma.stop.findUnique({ where: { id: request.dropStopId } });
   const driver = request.driverId ? await prisma.driver.findUnique({ where: { id: request.driverId } }) : null;
   const thread = await prisma.chatThread.findUnique({ where: { requestId: id }, include: { messages: { orderBy: { createdAt: "asc" } } } });
-  const status = request.status === "queued" ? (ar ? "في الانتظار" : "In the queue")
-    : request.status === "accepted" ? (ar ? "السائق قبل" : "Driver accepted")
-    : request.status === "agreed" ? (ar ? "المبلغ متفق عليه" : "Fare agreed")
-    : (ar ? "تم الطلب" : "Order created");
+  const status = request.status === "queued" ? (ar ? "بانتظار سائق على هذا الطريق." : "Waiting for a driver on this road.")
+    : request.status === "accepted" ? (ar ? "اتفقا على السعر، أو أرسل سعرًا آخر." : "Agree this price, or send a different one.")
+    : request.status === "agreed" ? (ar ? "اتفقتما. أكّد الرحلة." : "You both agreed. Confirm the ride.")
+    : (ar ? "الرحلة مؤكدة." : "This ride is confirmed.");
   return (
     <>
       <LiveRefresh />
-      <p className="pill">{status}</p>
+      <Steps labels={passengerSteps(ar)} current={4} />
+      <p className="card">{status}</p>
       <h1>{route ? (ar ? route.nameAr : route.nameEn) : ""}</h1>
       <p>{pickup ? (ar ? pickup.nameAr : pickup.nameEn) : ""} → {drop ? (ar ? drop.nameAr : drop.nameEn) : ""}</p>
       <p>{request.product === "monthly" ? (ar ? "شهري" : "Monthly") : (ar ? "يوم واحد" : "One day")} · {request.windowLabel}</p>
@@ -41,14 +43,14 @@ export default async function RiderRequest({
           <form className="stack" action={proposeFare}>
             <input type="hidden" name="locale" value={locale} />
             <input type="hidden" name="requestId" value={id} />
-            <label>{ar ? "عدّل المبلغ" : "Change the amount"}<input key={request.offerAed} name="amount" type="number" min="1" defaultValue={request.offerAed ?? ""} required /></label>
-            <button className="btn ghost" type="submit">{ar ? "أرسل السعر" : "Send this price"}</button>
+            <label>{ar ? "سعر آخر" : "A different price"}<input key={request.offerAed} name="amount" type="number" min="1" defaultValue={request.offerAed ?? ""} required /></label>
+            <button className="btn ghost" type="submit">{ar ? "أرسل هذا السعر" : "Send this price"}</button>
           </form>
           {!request.riderAgreed ? (
             <form action={agreeFare}>
               <input type="hidden" name="locale" value={locale} />
               <input type="hidden" name="requestId" value={id} />
-              <button className="btn" type="submit">{ar ? "أوافق على المبلغ" : "I agree to this amount"}</button>
+              <button className="btn" type="submit">{ar ? "أوافق على هذا السعر" : "I agree to this price"}</button>
             </form>
           ) : null}
         </>
@@ -57,10 +59,10 @@ export default async function RiderRequest({
         <form action={createOrder}>
           <input type="hidden" name="locale" value={locale} />
           <input type="hidden" name="requestId" value={id} />
-          <button className="btn" type="submit">{ar ? "إنشاء الطلب" : "Create the order"}</button>
+          <button className="btn" type="submit">{ar ? "أكّد الرحلة" : "Confirm the ride"}</button>
         </form>
       ) : null}
-      {request.bookingId ? <p><Link className="btn" href={`/${locale}/ride/trip/${request.bookingId}`}>{ar ? "الطلب" : "Open the order"}</Link></p> : null}
+      {request.bookingId ? <p><Link className="btn" href={`/${locale}/ride/trip/${request.bookingId}`}>{ar ? "افتح الرحلة" : "Open the ride"}</Link></p> : null}
       {thread ? (
         <>
           <div className="thread">

@@ -1,8 +1,8 @@
 import { Notice } from "@/components/notice";
 import { BookForm } from "@/components/book-form";
-import { t } from "@/i18n/copy";
 import { prisma } from "@/lib/db";
 import { dubaiToday } from "@/lib/time";
+import { Steps, passengerSteps } from "@/components/steps";
 
 export default async function BookPage({
   params,
@@ -18,10 +18,12 @@ export default async function BookPage({
     include: { stops: { orderBy: { sequence: "asc" } } },
     orderBy: { nameEn: "asc" },
   });
-  const m = t(locale);
+  const ar = locale === "ar";
   return (
     <>
-      <h1>{m.bookSeat}</h1>
+      <Steps labels={passengerSteps(ar)} current={3} />
+      <h1>{ar ? "إلى أين؟" : "Where are you going?"}</h1>
+      <p className="muted">{ar ? "سائق على نفس الطريق يراها ويمكنه قبولها." : "A driver on this road sees it and can accept it."}</p>
       <Notice locale={locale} code={query.error} />
       <BookForm
         locale={locale}
