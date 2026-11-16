@@ -36,7 +36,7 @@ export default async function Dashboard({
       <div className="grid">
         <article className="card"><h2>{runs.length}</h2><p>{ar ? "رحلات" : "Runs"}</p></article>
         <article className="card"><h2>{placed}</h2><p>{ar ? "مقاعد موضوعة" : "Seats placed"}</p></article>
-        <article className="card"><h2>{subs}</h2><p>{ar ? "اشتراكات نشطة" : "Active passes"}</p></article>
+        <article className="card"><h2>{subs}</h2><p>{ar ? "كل يوم عمل" : "Every working day"}</p></article>
         <article className="card"><h2>{openTickets}</h2><p>{ar ? "تذاكر مفتوحة" : "Open tickets"}</p></article>
       </div>
       <h2>{ar ? "تنبيهات" : "Alerts"}</h2>

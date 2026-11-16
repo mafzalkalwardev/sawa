@@ -109,6 +109,7 @@ export function BookForm({ locale, routes, date, initialProduct = "single" }: { 
           <option value="monthly">{m.monthly}</option>
         </select>
       </label>
+      {product === "monthly" ? <p className="muted">{ar ? "الأحد إلى الخميس. بعد الاتفاق تظهر في تبويب الشهر ويمكنك إيقافها." : "Sunday to Thursday. After you agree, it shows under Month and you can pause it."}</p> : null}
       <label className="row"><input type="checkbox" name="womenOnly" disabled={!route.womenOnlyAvailable} /> {m.womenOnly}</label>
       {!route.womenOnlyAvailable ? <p className="muted">{ar ? "لا توجد مركبة نساء فقط على هذا الممر." : "No women-only vehicle is on this corridor."}</p> : null}
       <p className="price">{price} AED</p>

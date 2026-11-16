@@ -21,6 +21,7 @@ export async function requestRide(formData: FormData) {
   const product = String(formData.get("product") || "single") === "monthly" ? "monthly" : "single";
   const rideMode = String(formData.get("rideMode") || "shared") === "private" ? "private" : "shared";
   const note = String(formData.get("note") || "").trim().slice(0, 240);
+  const womenOnly = formData.get("womenOnly") === "on";
   if (!routeId || !serviceDate || pickupStopId === dropStopId) redirect(`/${locale}/ride/book?error=same`);
   const route = await prisma.route.findUnique({ where: { id: routeId } });
   const pickup = await prisma.stop.findUnique({ where: { id: pickupStopId } });
@@ -60,6 +61,11 @@ export async function requestRide(formData: FormData) {
       offeredBy: "rider",
       riderAgreed: true,
     },
+  });
+  await prisma.preference.upsert({
+    where: { customerId: customer.id },
+    update: { womenOnly },
+    create: { id: nid("pref"), customerId: customer.id, womenOnly },
   });
   redirect(`/${locale}/ride/requests/${request.id}`);
 }
@@ -172,6 +178,35 @@ export async function createOrder(formData: FormData) {
     },
   });
   await openChat(booking.id);
+  if (request.product === "monthly") {
+    const pref = await prisma.preference.findUnique({ where: { customerId: request.customerId } });
+    const sub = await prisma.commuteSubscription.findFirst({
+      where: { customerId: request.customerId, routeId: request.routeId, status: { in: ["draft", "active", "paused"] } },
+    });
+    const month = {
+      pickupStopId: request.pickupStopId,
+      dropStopId: request.dropStopId,
+      morningWindow: request.shift === "morning" ? request.windowLabel : "7:00–8:10",
+      eveningWindow: request.shift === "evening" ? request.windowLabel : "17:40–19:00",
+      priceAed: request.offerAed,
+      womenOnly: pref?.womenOnly ?? false,
+      status: "active",
+      product: "monthly",
+    };
+    if (sub) await prisma.commuteSubscription.update({ where: { id: sub.id }, data: month });
+    else {
+      await prisma.commuteSubscription.create({
+        data: {
+          id: nid("sub"),
+          customerId: request.customerId,
+          routeId: request.routeId,
+          days: "0,1,2,3,4",
+          startDate: request.serviceDate,
+          ...month,
+        },
+      });
+    }
+  }
   await prisma.rideRequest.update({ where: { id }, data: { status: "ordered", bookingId: booking.id } });
   if (session.kind === "driver") redirect(`/${locale}/drive`);
   redirect(`/${locale}/ride/trip/${booking.id}?ok=booked`);

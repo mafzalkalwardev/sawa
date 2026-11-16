@@ -192,14 +192,12 @@ export async function saveCommute(formData: FormData) {
 export async function setCommuteStatus(formData: FormData) {
   const locale = String(formData.get("locale") || "en");
   const customer = await requireRider(locale);
-  const status = String(formData.get("status") || "paused");
-  await prisma.commuteSubscription.updateMany({
-    where: { customerId: customer.id, status: { in: ["active", "paused"] } },
-    data: { status: status === "active" ? "active" : "paused" },
-  });
-  if (status === "paused") {
-    await prisma.customer.update({ where: { id: customer.id }, data: { status: "paused" } });
-  } else {
+  const status = String(formData.get("status") || "paused") === "active" ? "active" : "paused";
+  const subscriptionId = String(formData.get("subscriptionId") || "");
+  const sub = await prisma.commuteSubscription.findFirst({ where: { id: subscriptionId, customerId: customer.id } });
+  if (!sub) redirect(`/${locale}/ride/passes?error=missing`);
+  await prisma.commuteSubscription.update({ where: { id: sub.id }, data: { status } });
+  if (status === "active" && customer.status === "paused") {
     await prisma.customer.update({ where: { id: customer.id }, data: { status: "active" } });
   }
   redirect(`/${locale}/ride/passes?ok=saved`);

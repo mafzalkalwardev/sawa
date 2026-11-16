@@ -25,3 +25,5 @@
 **Rating.** The number from 1 to 5 a passenger gives after the ride is finished.
 
 **Accepted driver.** A driver whose Emirates ID, licence, permit, and insurance have been accepted, so they can start a shift.
+
+**Every working day.** A ride that repeats Sunday to Thursday at the agreed fare. Pause means the passenger is not expected until they start it again. Today's confirmed ride stays.
