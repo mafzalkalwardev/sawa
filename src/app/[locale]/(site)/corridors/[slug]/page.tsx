@@ -3,6 +3,7 @@ import { MapView } from "@/components/map";
 import { pageMeta } from "@/lib/seo";
 import { prisma } from "@/lib/db";
 import { aed } from "@/lib/time";
+import { drive } from "@/server/routing";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string; slug: string }> }) {
   const { locale, slug } = await params;
@@ -16,6 +17,7 @@ export default async function CorridorPage({ params }: { params: Promise<{ local
   const route = await prisma.route.findUnique({ where: { slug }, include: { stops: { orderBy: { sequence: "asc" } } } });
   if (!route) notFound();
   const ar = locale === "ar";
+  const road = await drive(route.stops);
   return (
     <article className="section">
       <p className="eyebrow">{ar ? "ممر" : "Corridor"}</p>
@@ -26,7 +28,7 @@ export default async function CorridorPage({ params }: { params: Promise<{ local
       <p>{ar ? route.eveningTimetableAr : route.eveningTimetableEn}</p>
       <MapView
         points={route.stops.map((stop) => ({ id: stop.id, lat: stop.lat, lng: stop.lng, label: ar ? stop.nameAr : stop.nameEn, kind: "stop" as const }))}
-        path={route.stops.map((stop) => [stop.lat, stop.lng])}
+        path={road.path}
       />
       <ol>
         {route.stops.map((stop) => (

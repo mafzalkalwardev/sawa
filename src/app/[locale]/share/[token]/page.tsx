@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { MapView } from "@/components/map";
 import { prisma } from "@/lib/db";
-import { haversineKm, minutesAtPeak } from "@/lib/geo";
+import { drive, onRoad } from "@/server/routing";
 
 export const metadata = { robots: { index: false, follow: false } };
 
@@ -15,7 +15,11 @@ export default async function SharePage({ params }: { params: Promise<{ locale: 
   const ar = locale === "ar";
   const pickup = await prisma.stop.findUnique({ where: { id: booking.pickupStopId } });
   const driver = booking.run?.driver;
-  const eta = driver?.liveLat != null && pickup ? minutesAtPeak(haversineKm({ lat: driver.liveLat, lng: driver.liveLng || 0 }, pickup)) : null;
+  const stops = [...(booking.run?.route.stops ?? [])].sort((a, b) => a.sequence - b.sequence);
+  const road = stops.length ? await drive(stops) : null;
+  const live = driver?.liveLat != null && driver.liveLng != null ? { lat: driver.liveLat, lng: driver.liveLng } : null;
+  const marker = road && live && onRoad(live, road.path) ? live : stops[0] ? { lat: stops[0].lat, lng: stops[0].lng } : null;
+  const eta = marker && pickup ? (await drive([marker, pickup])).durationMin : null;
   return (
     <main className="wrap section">
       <p className="banner">{ar ? "مشاركة رحلة. ليست خدمة طوارئ." : "Shared trip. Not an emergency service."}</p>
@@ -24,8 +28,11 @@ export default async function SharePage({ params }: { params: Promise<{ locale: 
       <p>{pickup ? (ar ? pickup.nameAr : pickup.nameEn) : ""}{eta != null ? ` · ${eta} min` : ""}</p>
       {booking.run ? (
         <MapView
-          points={(booking.run.route.stops || []).map((stop) => ({ id: stop.id, lat: stop.lat, lng: stop.lng, label: ar ? stop.nameAr : stop.nameEn }))}
-          path={booking.run.route.stops.map((stop) => [stop.lat, stop.lng])}
+          points={[
+            ...stops.map((stop) => ({ id: stop.id, lat: stop.lat, lng: stop.lng, label: ar ? stop.nameAr : stop.nameEn, kind: "stop" as const })),
+            ...(marker && driver ? [{ id: "live", lat: marker.lat, lng: marker.lng, label: driver.displayName, kind: "live" as const }] : []),
+          ]}
+          path={road?.path ?? []}
         />
       ) : null}
     </main>

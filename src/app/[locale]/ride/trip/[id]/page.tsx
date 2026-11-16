@@ -5,9 +5,9 @@ import { Notice } from "@/components/notice";
 import { t } from "@/i18n/copy";
 import { requireRider } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { haversineKm, minutesAtPeak } from "@/lib/geo";
 import { headers } from "next/headers";
 import { cancelBooking, sendSos } from "@/server/actions/rider";
+import { awayFromRoadKm, drive, onRoad } from "@/server/routing";
 
 export default async function TripPage({
   params,
@@ -30,13 +30,22 @@ export default async function TripPage({
   const ar = locale === "ar";
   const stops = booking.run?.route.stops ?? [];
   const driver = booking.run?.driver;
-  const next = pickup;
-  const eta = driver?.liveLat != null && driver.liveLng != null && next ? minutesAtPeak(haversineKm({ lat: driver.liveLat, lng: driver.liveLng }, next)) : next ? 12 : null;
+  const road = stops.length ? await drive(stops) : null;
+  const live = driver?.liveLat != null && driver.liveLng != null ? { lat: driver.liveLat, lng: driver.liveLng } : null;
+  const base = driver?.baseLat != null && driver.baseLng != null ? { lat: driver.baseLat, lng: driver.baseLng } : null;
+  const marker = road && live && onRoad(live, road.path)
+    ? live
+    : road && base && onRoad(base, road.path)
+      ? base
+      : stops[0] ? { lat: stops[0].lat, lng: stops[0].lng } : null;
+  const ping = driver ? await prisma.locationPing.findFirst({ where: { driverId: driver.id }, orderBy: { createdAt: "desc" } }) : null;
+  const awayKm = road && ping ? awayFromRoadKm(ping, road.path) : null;
+  const eta = marker && pickup ? (await drive([marker, pickup])).durationMin : null;
   const host = (await headers()).get("host");
   const share = booking.shareToken ? `http://${host}/${locale}/share/${booking.shareToken}` : "";
   const points = [
     ...stops.map((stop) => ({ id: stop.id, lat: stop.lat, lng: stop.lng, label: ar ? stop.nameAr : stop.nameEn, kind: "stop" as const })),
-    ...(driver?.liveLat != null && driver.liveLng != null ? [{ id: "live", lat: driver.liveLat, lng: driver.liveLng, label: driver.displayName, kind: "live" as const }] : []),
+    ...(marker && driver ? [{ id: "live", lat: marker.lat, lng: marker.lng, label: driver.displayName, kind: "live" as const }] : []),
   ];
   return (
     <>
@@ -46,24 +55,28 @@ export default async function TripPage({
       <p className="muted">{m.pin}</p>
       {booking.run ? (
         <LiveTrip
+          locale={locale}
           runId={booking.run.id}
           initial={{
-            lat: driver?.liveLat ?? null,
-            lng: driver?.liveLng ?? null,
+            lat: marker?.lat ?? null,
+            lng: marker?.lng ?? null,
             etaMin: eta,
-            nextStop: next ? (ar ? next.nameAr : next.nameEn) : null,
+            awayKm,
+            nextStop: pickup ? (ar ? pickup.nameAr : pickup.nameEn) : null,
             delayNote: booking.run.delayNote,
             plate: booking.run.vehicle.plate,
             driver: driver?.displayName ?? null,
-            path: stops.map((stop) => [stop.lat, stop.lng]),
+            path: road?.path ?? [],
             points,
           }}
         />
       ) : (
-        <p className="card">{ar ? "تم الدفع. العمليات ستضعك على مركبة مرخّصة." : "Paid. Operations will place you on a licensed vehicle."}</p>
+        <p className="card">{ar ? "الطلب مؤكد. بانتظار مركبة على هذا الممر." : "Order confirmed. Waiting for a vehicle on this corridor."}</p>
       )}
       <p>{pickup ? (ar ? pickup.nameAr : pickup.nameEn) : ""} → {drop ? (ar ? drop.nameAr : drop.nameEn) : ""}</p>
-      <p>{booking.windowLabel}</p>
+      <p>{booking.windowLabel} · {booking.rideMode === "private" ? (ar ? "مركبة وحدك" : "Vehicle alone") : (ar ? "مقعد مشترك" : "Shared seat")} · {booking.priceAed} AED</p>
+      <p className="muted">{ar ? "المبلغ المتفق عليه مع السائق." : "The amount agreed with the driver."}</p>
+      {booking.run ? <p><Link className="btn" href={`/${locale}/ride/chat/${booking.id}`}>{ar ? "محادثة السائق" : "Chat with the driver"}</Link></p> : null}
       {share ? <p><span>{m.share}</span><br /><a href={share}>{share}</a></p> : null}
       <form action={sendSos}>
         <input type="hidden" name="locale" value={locale} />

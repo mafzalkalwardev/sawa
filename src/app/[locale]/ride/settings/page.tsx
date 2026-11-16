@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { Notice } from "@/components/notice";
 import { t } from "@/i18n/copy";
 import { requireRider } from "@/lib/auth";
+import { logout } from "@/server/actions/auth";
 import { deleteAccount, setLargeType } from "@/server/actions/rider";
 
 export default async function SettingsPage({
@@ -28,6 +29,10 @@ export default async function SettingsPage({
       <form action={setLargeType}>
         <input type="hidden" name="locale" value={locale} />
         <button className="btn ghost" type="submit">{m.largeType}: {large ? (ar ? "تشغيل" : "On") : (ar ? "إيقاف" : "Off")}</button>
+      </form>
+      <form action={logout}>
+        <input type="hidden" name="next" value={`/${locale}/app`} />
+        <button className="btn ghost" type="submit">{m.logout}</button>
       </form>
       <p className="muted">{m.locationDisclosure}</p>
       <p><Link href={`/${locale}/privacy`}>{m.privacy}</Link> · <Link href={`/${locale}/terms`}>{m.terms}</Link></p>

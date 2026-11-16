@@ -1,11 +1,12 @@
 import { prisma } from "@/lib/db";
-import { nearestStop } from "@/lib/geo";
+import { haversineKm, nearestStop } from "@/lib/geo";
 import { nid } from "@/lib/ids";
 import { weekdaySun0 } from "@/lib/time";
 import { DETOUR_CAP_MIN, rankDriver } from "./matching";
 import { audit } from "./records";
 import { driverDocsValid } from "./records";
 import { createRun, seatsFree } from "./runs";
+import { drive } from "./routing";
 
 type Demand = {
   customerId: string;
@@ -109,6 +110,7 @@ export async function buildPlan(serviceDate: string, shift: "morning" | "evening
 
   const drivers = await prisma.driver.findMany({ include: { operator: true, vehicles: true } });
   const created: string[] = [];
+  const heldOnRoute = new Map<string, string>();
 
   for (const [, group] of groups) {
     const first = group[0];
@@ -131,13 +133,27 @@ export async function buildPlan(serviceDate: string, shift: "morning" | "evening
 
     const firstStop = await prisma.stop.findUnique({ where: { id: first.pickupStopId } });
     const route = await prisma.route.findUnique({ where: { id: first.routeId } });
+    const routeStops = await prisma.stop.findMany({ where: { routeId: first.routeId }, orderBy: { sequence: "asc" } });
+    const clusterStops = routeStops.filter((stop) => stopIds.includes(stop.id));
+    const corridorMinutes = (await drive(routeStops)).durationMin;
     const ranked = [];
     for (const driver of drivers) {
       const vehicle = driver.vehicles.find((v) => v.id === driver.defaultVehicleId) ?? driver.vehicles[0];
       const preferred = driver.preferredRouteIds.split(",").map((item) => item.trim()).filter(Boolean);
       const routeKeys = [first.routeId, route?.slug, route?.slug ? `rte_${route.slug}` : ""].filter(Boolean);
       const sameRoute = preferred.length === 0 || preferred.some((item) => routeKeys.includes(item));
-      const detourMin = sameRoute ? 0 : 30;
+      let detourMin = 0;
+      if (!sameRoute && firstStop) {
+        const origin = driver.liveLat != null && driver.liveLng != null
+          ? { lat: driver.liveLat, lng: driver.liveLng }
+          : driver.baseLat != null && driver.baseLng != null
+            ? { lat: driver.baseLat, lng: driver.baseLng }
+            : null;
+        detourMin = origin ? (await drive([origin, firstStop])).durationMin : 30;
+      } else if (clusterStops.length >= 2) {
+        const servedMinutes = (await drive(clusterStops)).durationMin;
+        detourMin = Math.max(0, servedMinutes - corridorMinutes);
+      }
       const other = await prisma.run.findFirst({
         where: {
           driverId: driver.id,
@@ -161,14 +177,10 @@ export async function buildPlan(serviceDate: string, shift: "morning" | "evening
       if (sameRun) seats = await seatsFree(sameRun.id);
       const off = await prisma.timeOff.findFirst({ where: { driverId: driver.id, date: serviceDate } });
       const docsValid = vehicle ? await driverDocsValid(driver.id, vehicle.id) : false;
+      const heldRoute = heldOnRoute.get(driver.id);
       const distanceKm =
         driver.baseLat != null && driver.baseLng != null && firstStop
-          ? Math.round(
-              Math.hypot(
-                (driver.baseLat - firstStop.lat) * 111,
-                (driver.baseLng - firstStop.lng) * 111 * Math.cos((firstStop.lat * Math.PI) / 180),
-              ) * 10,
-            ) / 10
+          ? Math.round(haversineKm({ lat: driver.baseLat, lng: driver.baseLng }, firstStop) * 10) / 10
           : 25;
       const result = rankDriver({
         distanceKm,
@@ -189,7 +201,7 @@ export async function buildPlan(serviceDate: string, shift: "morning" | "evening
         docsValid,
         licensedOperator: driver.operator.active && Boolean(driver.operator.licenceRef),
         available: !off && driver.status === "approved",
-        doubleBookedElsewhere: Boolean(other),
+        doubleBookedElsewhere: Boolean(other) || (heldRoute != null && heldRoute !== first.routeId),
       });
       ranked.push({ driver, vehicle, result });
     }
@@ -198,6 +210,8 @@ export async function buildPlan(serviceDate: string, shift: "morning" | "evening
       if (a.result.eligible !== b.result.eligible) return a.result.eligible ? -1 : 1;
       return b.result.score - a.result.score;
     });
+    const top = ranked.find((row) => row.result.eligible);
+    if (top && !heldOnRoute.has(top.driver.id)) heldOnRoute.set(top.driver.id, first.routeId);
 
     await prisma.recommendation.createMany({
       data: ranked.map((row, index) => ({
@@ -232,6 +246,17 @@ export async function confirmCluster(opts: {
   const vehicle = driver.vehicles.find((v) => v.id === driver.defaultVehicleId) ?? driver.vehicles[0];
   if (!vehicle) throw new Error("Driver has no vehicle.");
   if (opts.source === "override" && !opts.reason?.trim()) throw new Error("Override needs a reason.");
+
+  const conflict = await prisma.run.findFirst({
+    where: {
+      driverId: driver.id,
+      serviceDate: cluster.serviceDate,
+      shift: cluster.shift,
+      status: { in: ["scheduled", "live"] },
+      routeId: { not: cluster.routeId },
+    },
+  });
+  if (conflict) throw new Error("Driver is already assigned on another corridor this shift.");
 
   const customerIds = JSON.parse(cluster.customerIds) as string[];
   let run = await prisma.run.findFirst({

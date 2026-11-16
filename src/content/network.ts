@@ -18,7 +18,9 @@ export type RouteSeed = {
   detailEn: string;
   detailAr: string;
   seatPriceAed: number;
+  privatePriceAed: number;
   monthlyPriceAed: number;
+  monthlyPrivateAed: number;
   morningTimetableEn: string;
   morningTimetableAr: string;
   eveningTimetableEn: string;
@@ -39,10 +41,12 @@ export const network: RouteSeed[] = [
     nameAr: "الشارقة–دبي",
     summaryEn: "A reserved seat on a licensed shared van between Rolla and Bur Dubai, using published stops instead of a door-to-door zigzag.",
     summaryAr: "مقعد محجوز على فان مشترك مرخّص بين الرولة وبر دبي، عبر مواقف معلنة بدل التنقل من باب إلى باب.",
-    detailEn: "This is the beachhead corridor. Pickup is at named hubs near Rolla, Al Nahda, and Dubai metro stations. Demo seat fare is AED 25 one way. A monthly pass is AED 450. These are illustrative product prices for the demo, not an RTA-approved tariff. A public bus month on this corridor is often cited around AED 528 before metro feeders, and a solo car is commonly illustrated in a roughly AED 690–1,235 band once fuel, Salik, and parking are included.",
+    detailEn: "Commuters on this corridor usually post a pickup, a drop and a time in Facebook and WhatsApp groups, then wait for a driver on the same road. Sawa keeps that match, but only on a licensed van. A shared seat is AED 100. Booking the same vehicle alone is AED 350, so the shared seat is AED 250 less. These are demo tariffs, not an RTA-approved fare.",
     detailAr: "هذا ممر البداية. الصعود من مواقف معروفة قرب الرولة والنهدة ومحطات مترو دبي. أجرة المقعد التجريبية 25 درهمًا للاتجاه الواحد، والاشتراك الشهري 450 درهمًا. هذه أسعار توضيحية للعرض وليست تعرفة معتمدة من هيئة الطرق والمواصلات. يُذكر أن شهرًا من حافلات هذا الممر يقارب 528 درهمًا قبل المترو، وأن السيارة المنفردة تُقدَّر غالبًا بين 690 و1235 درهمًا مع الوقود وسالك والمواقف.",
-    seatPriceAed: 25,
-    monthlyPriceAed: 450,
+    seatPriceAed: 100,
+    privatePriceAed: 350,
+    monthlyPriceAed: 2200,
+    monthlyPrivateAed: 4600,
     morningTimetableEn: morningEn,
     morningTimetableAr: morningAr,
     eveningTimetableEn: eveningEn,
@@ -65,10 +69,12 @@ export const network: RouteSeed[] = [
     nameAr: "عجمان–دبي",
     summaryEn: "A licensed shared seat from Ajman Corniche toward DIFC and Business Bay, with airport and Al Rashidiya as mid stops.",
     summaryAr: "مقعد مشترك مرخّص من كورنيش عجمان نحو مركز دبي المالي والخليج التجاري، مع محطات في الراشدية ومطار دبي.",
-    detailEn: "Demo seat fare is AED 30 one way and the monthly pass is AED 520. Stops stay on the published list so the vehicle does not turn into an unlicensed door-to-door lift.",
+    detailEn: "Same community pattern as Sharjah: people name Ajman Corniche or Al Nuaimiya, a Dubai office, and a morning window. A shared seat is AED 120. The licensed vehicle alone is AED 370, AED 250 more. Stops stay on the published list.",
     detailAr: "أجرة المقعد التجريبية 30 درهمًا للاتجاه، والاشتراك الشهري 520 درهمًا. المواقف تبقى على القائمة المعلنة حتى لا يتحول المسار إلى توصيل غير مرخّص من الباب.",
-    seatPriceAed: 30,
-    monthlyPriceAed: 520,
+    seatPriceAed: 120,
+    privatePriceAed: 370,
+    monthlyPriceAed: 2600,
+    monthlyPrivateAed: 5000,
     morningTimetableEn: morningEn,
     morningTimetableAr: morningAr,
     eveningTimetableEn: eveningEn,
@@ -89,10 +95,12 @@ export const network: RouteSeed[] = [
     nameAr: "دبي–أبوظبي",
     summaryEn: "A hub-to-hub shared seat in the pattern of the official Ibn Battuta–Al Wahda shared taxi, on a licensed vehicle only.",
     summaryAr: "مقعد مشترك من محور إلى محور على نمط التاكسي المشترك الرسمي بين ابن بطوطة والوحدة، وعلى مركبة مرخّصة فقط.",
-    detailEn: "Demo seat fare is AED 75 one way and the monthly pass is AED 1,200. RTA’s 2024 shared-taxi pilot published per-person fares of AED 132, 88, or 66 depending on how many riders shared the car. Sawa does not copy that fare table; the numbers here are demo prices for a seat on a partner vehicle.",
+    detailEn: "Hub to hub, in the pattern of the Ibn Battuta–Al Wahda shared taxi, on a licensed vehicle only. A shared seat is AED 180. The vehicle alone is AED 430, which is AED 250 more. RTA’s 2024 shared-taxi pilot published per-person fares of AED 132, 88, or 66. These demo numbers are not that table.",
     detailAr: "أجرة المقعد التجريبية 75 درهمًا للاتجاه، والاشتراك الشهري 1200 درهم. نشرت هيئة الطرق تجربة التاكسي المشترك عام 2024 أجورًا للراكب 132 أو 88 أو 66 درهمًا حسب عدد الركاب. سوى لا تنسخ ذلك الجدول؛ الأرقام هنا أسعار تجريبية لمقعد على مركبة شريكة.",
-    seatPriceAed: 75,
-    monthlyPriceAed: 1200,
+    seatPriceAed: 180,
+    privatePriceAed: 430,
+    monthlyPriceAed: 3600,
+    monthlyPrivateAed: 6000,
     morningTimetableEn: "Departures at 6:00, 7:00, and 8:10 from Ibn Battuta. Evening returns at 16:30, 17:40, and 19:00 from Al Wahda.",
     morningTimetableAr: "انطلاقات 6:00 و7:00 و8:10 من ابن بطوطة. العودة مساءً 16:30 و17:40 و19:00 من الوحدة.",
     eveningTimetableEn: "Evening returns at 16:30, 17:40, and 19:00 from Al Wahda toward Ibn Battuta.",

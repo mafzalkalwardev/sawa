@@ -7,6 +7,7 @@ type Live = {
   lat: number | null;
   lng: number | null;
   etaMin: number | null;
+  awayKm: number | null;
   nextStop: string | null;
   delayNote: string | null;
   plate: string | null;
@@ -15,7 +16,7 @@ type Live = {
   points: { id: string; lat: number; lng: number; label: string; kind?: "stop" | "live" | "rider" }[];
 };
 
-export function LiveTrip({ runId, initial }: { runId: string; initial: Live }) {
+export function LiveTrip({ runId, initial, locale }: { runId: string; initial: Live; locale: string }) {
   const [data, setData] = useState(initial);
   useEffect(() => {
     const timer = setInterval(async () => {
@@ -27,6 +28,14 @@ export function LiveTrip({ runId, initial }: { runId: string; initial: Live }) {
   return (
     <div className="stack">
       <MapView points={data.points} path={data.path} />
+      <p className="muted">{locale === "ar" ? "مسار القيادة على خريطة OpenStreetMap." : "Driving route on the OpenStreetMap road network."}</p>
+      {data.awayKm != null ? (
+        <p className="alert">
+          {locale === "ar"
+            ? `موقع الهاتف يبعد ${data.awayKm} كم عن الممر. تبقى المركبة على الطريق حتى يصل الموقع إلى المسار.`
+            : `Phone GPS is ${data.awayKm} km off this corridor. The van stays on the road until the fix is on the route.`}
+        </p>
+      ) : null}
       <p className="meta"><span>{data.driver}</span><span>{data.plate}</span></p>
       <p>{data.nextStop ? data.nextStop : ""}{data.etaMin != null ? ` · ${data.etaMin} min` : ""}</p>
       {data.delayNote ? <p className="alert">{data.delayNote}</p> : null}

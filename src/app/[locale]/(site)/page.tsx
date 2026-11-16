@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { JsonLd } from "@/components/json-ld";
-import { faq } from "@/content/network";
 import { pageMeta } from "@/lib/seo";
 import { prisma } from "@/lib/db";
 
@@ -34,28 +33,22 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       />
       <section className="hero">
         <div>
-          <p className="eyebrow">{ar ? "تنقّل مشترك مرخّص" : "Licensed shared commute"}</p>
-          <h1>{ar ? "مقعد محجوز على فان مرخّص، لا توصيلة من سيارة خاصة." : "A reserved seat on a licensed van, not a private-car lift."}</h1>
-          <p className="lead">
-            {ar
-              ? "سوى تحجز مقعدك على مركبة مشتركة مرخّصة بين الشارقة ودبي، وعجمان ودبي، ودبي وأبوظبي. الشاشة الأولى جدول ومواقف معلنة، وليست دبوسًا على الخريطة."
-              : "Sawa books your seat on a licensed shared vehicle between Sharjah and Dubai, Ajman and Dubai, and Dubai and Abu Dhabi. The home screen is a timetable and published stops, not a map pin."}
-          </p>
-          <div className="row">
-            <Link className="btn" href={`/${locale}/ride/book`}>{ar ? "احجز مقعدًا" : "Book a seat"}</Link>
-            <Link className="btn ghost" href={`/${locale}/how-it-works`}>{ar ? "كيف يعمل" : "How it works"}</Link>
+          <p className="eyebrow">{ar ? "الشارقة · عجمان · دبي · أبوظبي" : "Sharjah · Ajman · Dubai · Abu Dhabi"}</p>
+          <h1>{ar ? "رحلتك تنتظر سائقًا على نفس الممر." : "Your ride waits for a driver on the same corridor."}</h1>
+          <div className="choice-grid">
+            <Link className="choice" href={`/${locale}/ride/book?product=single`}>
+              <span><strong>{ar ? "رحلة يوم" : "One-day ride"}</strong><span>{ar ? "مقعد أو مركبة لهذا اليوم" : "A seat or the vehicle for one day"}</span></span>
+              <strong>→</strong>
+            </Link>
+            <Link className="choice" href={`/${locale}/ride/book?product=monthly`}>
+              <span><strong>{ar ? "اشتراك شهري" : "Monthly ride"}</strong><span>{ar ? "نفس الطريق، أيام العمل" : "The same road, every working day"}</span></span>
+              <strong>→</strong>
+            </Link>
           </div>
-          <ol className="route-diagram">
-            <li>{ar ? "الشارقة" : "Sharjah"}</li>
-            <li>{ar ? "النهدة" : "Al Nahda"}</li>
-            <li>{ar ? "دبي" : "Dubai"}</li>
-          </ol>
+          <div className="row">
+            <a className="btn" href="/sawa.apk">{ar ? "تنزيل تطبيق أندرويد" : "Download the Android app"}</a>
+          </div>
         </div>
-        <aside className="card">
-          <h2>{ar ? "ما الذي لا تفعله سوى" : "What Sawa does not do"}</h2>
-          <p>{ar ? "لا تسمح لمالك سيارة خاصة بعرض مقاعد مدفوعة للغرباء. نقل الركاب بأجر في مركبة غير مرخّصة مخالفة في دبي." : "It does not let a private-car owner sell paid seats to strangers. Paid carriage in an unlicensed vehicle is an offence in Dubai."}</p>
-          <p className="muted">{ar ? "هذا برنامج عرض. نقل الركاب الحقيقي يحتاج موافقات هيئة الطرق في دبي والشارقة ومركز النقل المتكامل في أبوظبي." : "This is demonstration software. Real passengers need comfort from Dubai RTA, Sharjah RTA, and Abu Dhabi’s Integrated Transport Centre."}</p>
-        </aside>
       </section>
       <section className="section">
         <h2>{ar ? "الممرات" : "Corridors"}</h2>
@@ -63,24 +56,10 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           {routes.map((route) => (
             <Link key={route.id} className="card" href={`/${locale}/corridors/${route.slug}`}>
               <h3>{ar ? route.nameAr : route.nameEn}</h3>
-              <p>{ar ? route.summaryAr : route.summaryEn}</p>
               <p className="price">{ar ? `${route.seatPriceAed} د.إ للمقعد` : `AED ${route.seatPriceAed} a seat`}</p>
             </Link>
           ))}
         </div>
-      </section>
-      <section className="split">
-        <article>
-          <h2>{ar ? "لمن هذا" : "Who it is for"}</h2>
-          <p>{ar ? "للموظفين والجامعات على ممرات بين الإمارات، حيث يعيش الناس في الشارقة أو عجمان ويعملون في دبي. السعر يجب أن يكون أوضح من السيارة المنفردة وأقرب من الحافلة." : "Employees and campuses on inter-emirate corridors, where people live in Sharjah or Ajman and work in Dubai. The price has to beat solo driving on cost and beat the bus on time and walking distance."}</p>
-        </article>
-        <article>
-          <h2>{ar ? "أسئلة قصيرة" : "Short answers"}</h2>
-          {faq.slice(0, 3).map((item) => (
-            <p key={item.qEn}><strong>{ar ? item.qAr : item.qEn}</strong> {ar ? item.aAr : item.aEn}</p>
-          ))}
-          <Link href={`/${locale}/faq`}>{ar ? "كل الأسئلة" : "All questions"}</Link>
-        </article>
       </section>
     </>
   );

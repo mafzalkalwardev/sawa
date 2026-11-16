@@ -5,6 +5,7 @@ import { requireDriver } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { dubaiToday } from "@/lib/time";
 import { arriveStop, boardWithPin, completeRun, endShift, markNoShow, reportDelay, reportIncident, simulateLocation } from "@/server/actions/driver";
+import { awayFromRoadKm, drive } from "@/server/routing";
 
 export default async function ShiftPage({
   params,
@@ -30,6 +31,9 @@ export default async function ShiftPage({
   const m = t(locale);
   const ar = locale === "ar";
   const nextEvent = run?.stopEvents.find((event) => event.status !== "arrived");
+  const road = stops.length ? await drive([...stops].sort((a, b) => a.sequence - b.sequence)) : null;
+  const ping = await prisma.locationPing.findFirst({ where: { driverId: driver.id }, orderBy: { createdAt: "desc" } });
+  const awayKm = road && ping ? awayFromRoadKm(ping, road.path) : null;
   return (
     <>
       <LocationPublisher enabled={driver.onShift} />
@@ -38,6 +42,7 @@ export default async function ShiftPage({
       {!run ? <p>{ar ? "لا توجد رحلة." : "No run."}</p> : (
         <>
           <p>{ar ? run.route.nameAr : run.route.nameEn} · {run.vehicle.plate} · {run.status}</p>
+          {awayKm != null ? <p className="alert">{ar ? `موقع الهاتف يبعد ${awayKm} كم عن الممر. التحريك يبقى على طريق القيادة.` : `Phone GPS is ${awayKm} km off this corridor. Moving the van stays on the driving route.`}</p> : null}
           {nextEvent ? (
             <form action={arriveStop}>
               <input type="hidden" name="locale" value={locale} />

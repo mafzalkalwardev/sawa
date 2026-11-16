@@ -8,6 +8,14 @@ out
 prisma/dev.db
 prisma/dev.db-journal
 data/uploads
+data/*.jpg
 .DS_Store
 next-env.d.ts
 tsconfig.tsbuildinfo
+android/.gradle
+android/build
+android/app/build
+android/local.properties
+android/.idea
+android/sawa-release.jks
+android/keystore.properties

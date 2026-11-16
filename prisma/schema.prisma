@@ -157,6 +157,7 @@ model Customer {
   language         String           @default("en")
   gender           String           @default("unspecified")
   photoUrl         String?
+  idDocumentUrl    String?
   corporateId      String?
   corporate        CorporateAccount? @relation(fields: [corporateId], references: [id])
   emergencyName    String?
@@ -228,7 +229,9 @@ model Route {
   detailEn             String
   detailAr             String
   seatPriceAed         Int
+  privatePriceAed      Int      @default(350)
   monthlyPriceAed      Int
+  monthlyPrivateAed    Int      @default(4600)
   morningTimetableEn   String
   morningTimetableAr   String
   eveningTimetableEn   String
@@ -351,6 +354,7 @@ model Booking {
   pickupStopId String
   dropStopId   String
   product      String
+  rideMode     String    @default("shared")
   priceAed     Int
   status       String
   pin          String?
@@ -506,6 +510,51 @@ model Communication {
   relatedId   String?
   status      String
   createdAt   DateTime @default(now())
+}
+
+model RideRequest {
+  id            String   @id
+  customerId    String
+  driverId      String?
+  routeId       String
+  pickupStopId  String
+  dropStopId    String
+  serviceDate   String
+  shift         String
+  windowLabel   String
+  product       String
+  rideMode      String   @default("shared")
+  note          String?
+  status        String
+  offerAed      Int?
+  offeredBy     String?
+  riderAgreed   Boolean  @default(false)
+  driverAgreed  Boolean  @default(false)
+  bookingId     String?
+  createdAt     DateTime @default(now())
+
+  @@index([status, routeId])
+}
+
+model ChatThread {
+  id         String        @id
+  bookingId  String?       @unique
+  requestId  String?       @unique
+  driverId   String
+  customerId String
+  createdAt  DateTime      @default(now())
+  messages   ChatMessage[]
+}
+
+model ChatMessage {
+  id         String     @id
+  threadId   String
+  thread     ChatThread @relation(fields: [threadId], references: [id])
+  senderKind String
+  body       String
+  createdAt  DateTime   @default(now())
+
+  @@index([threadId, createdAt])
 }
 
 model OtpChallenge {

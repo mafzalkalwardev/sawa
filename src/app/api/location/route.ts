@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { haversineKm } from "@/lib/geo";
 import { nid } from "@/lib/ids";
+import { drive, onRoad } from "@/server/routing";
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -13,24 +13,21 @@ export async function POST(request: Request) {
   if (!body || typeof body.lat !== "number" || typeof body.lng !== "number") {
     return NextResponse.json({ error: "bad" }, { status: 400 });
   }
+  const fix = { lat: body.lat, lng: body.lng };
   const run = await prisma.run.findFirst({
     where: { driverId: driver.id, status: "live" },
-    include: { route: { include: { stops: true } } },
+    include: { route: { include: { stops: { orderBy: { sequence: "asc" } } } } },
   });
-  const anchors = [
-    ...(run?.route.stops ?? []),
-    ...(driver.baseLat != null && driver.baseLng != null ? [{ lat: driver.baseLat, lng: driver.baseLng }] : []),
-  ];
-  const nearestKm = anchors.length
-    ? Math.min(...anchors.map((stop) => haversineKm({ lat: body.lat as number, lng: body.lng as number }, stop)))
-    : 0;
-  if (nearestKm > 40) return NextResponse.json({ ok: true, ignored: "off-corridor" });
-  await prisma.driver.update({
-    where: { id: driver.id },
-    data: { liveLat: body.lat, liveLng: body.lng, liveAt: new Date() },
-  });
+  const road = run ? await drive(run.route.stops) : null;
+  const nearRoad = road ? onRoad(fix, road.path) : false;
   await prisma.locationPing.create({
-    data: { id: nid("png"), driverId: driver.id, lat: body.lat, lng: body.lng, source: body.source === "gps" ? "gps" : "simulator" },
+    data: { id: nid("png"), driverId: driver.id, lat: fix.lat, lng: fix.lng, source: body.source === "gps" ? "gps" : "simulator" },
   });
-  return NextResponse.json({ ok: true });
+  if (nearRoad) {
+    await prisma.driver.update({
+      where: { id: driver.id },
+      data: { liveLat: fix.lat, liveLng: fix.lng, liveAt: new Date() },
+    });
+  }
+  return NextResponse.json({ ok: true, onCorridor: nearRoad });
 }

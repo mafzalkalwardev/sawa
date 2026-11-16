@@ -6,37 +6,73 @@ import { clearSession, requireRider } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { nid, pinCode, shareToken } from "@/lib/ids";
 import { hoursUntilShift } from "@/lib/time";
+import { quoteToll } from "@/lib/tolls";
+import { openChat } from "@/server/chat";
 import { audit } from "@/server/records";
+import { createRun } from "@/server/runs";
+
+function coversRoute(preferred: string, slug: string) {
+  return preferred.split(",").map((item) => item.trim()).includes(slug);
+}
 
 async function attachBooking(bookingId: string) {
   const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
   if (!booking) return null;
+  const pin = booking.pin || pinCode();
+  const token = booking.shareToken || shareToken();
+  const route = await prisma.route.findUnique({ where: { id: booking.routeId } });
   const runs = await prisma.run.findMany({
     where: {
-      routeId: booking.routeId,
       serviceDate: booking.serviceDate,
       shift: booking.shift,
       status: { in: ["scheduled", "live"] },
     },
-    include: { vehicle: true, bookings: true },
+    include: { vehicle: true, bookings: true, driver: true, route: true },
   });
-  const pin = booking.pin || pinCode();
-  const token = booking.shareToken || shareToken();
-  for (const run of runs) {
-    const used = run.bookings.filter((item) => ["confirmed", "boarded", "completed"].includes(item.status) && item.id !== booking.id).length;
-    if (used >= run.vehicle.seatCapacity) continue;
-    if (booking.womenOnly && !run.vehicle.ladiesLicensed) continue;
-    if (!booking.womenOnly && run.vehicle.ladiesLicensed) continue;
-    await prisma.booking.update({
-      where: { id: booking.id },
-      data: { runId: run.id, status: "confirmed", pin, shareToken: token },
+  const fits = (run: (typeof runs)[number]) => {
+    if (!route || run.route.slug !== route.slug) return false;
+    if (!coversRoute(run.driver.preferredRouteIds, route.slug) && run.routeId !== route.id) return false;
+    const others = run.bookings.filter((item) => ["confirmed", "boarded", "completed"].includes(item.status) && item.id !== booking.id);
+    if (others.length >= run.vehicle.seatCapacity) return false;
+    if (booking.rideMode === "private" && others.length > 0) return false;
+    if (booking.rideMode !== "private" && others.some((item) => item.rideMode === "private")) return false;
+    if (booking.womenOnly && !run.vehicle.ladiesLicensed) return false;
+    if (!booking.womenOnly && run.vehicle.ladiesLicensed) return false;
+    return true;
+  };
+  let run = runs.find(fits) ?? null;
+  if (!run && route) {
+    const drivers = await prisma.driver.findMany({
+      where: { status: "approved" },
+      include: { vehicles: true },
     });
-    return booking.id;
+    for (const driver of drivers) {
+      if (!coversRoute(driver.preferredRouteIds, route.slug)) continue;
+      const vehicle = driver.vehicles.find((item) => item.id === driver.defaultVehicleId && item.status === "active");
+      if (!vehicle) continue;
+      if (booking.womenOnly && !vehicle.ladiesLicensed) continue;
+      if (!booking.womenOnly && vehicle.ladiesLicensed) continue;
+      const already = runs.find((item) => item.driverId === driver.id);
+      if (already) continue;
+      const created = await createRun({
+        routeId: route.id,
+        driverId: driver.id,
+        vehicleId: vehicle.id,
+        serviceDate: booking.serviceDate,
+        shift: booking.shift,
+      });
+      run = await prisma.run.findUnique({
+        where: { id: created.id },
+        include: { vehicle: true, bookings: true, driver: true, route: true },
+      });
+      break;
+    }
   }
   await prisma.booking.update({
     where: { id: booking.id },
-    data: { status: "confirmed", pin, shareToken: token, runId: null },
+    data: { runId: run?.id ?? null, status: "confirmed", pin, shareToken: token },
   });
+  if (run) await openChat(booking.id);
   return booking.id;
 }
 
@@ -45,6 +81,35 @@ export async function saveProfile(formData: FormData) {
   const customer = await requireRider(locale);
   const fullName = String(formData.get("fullName") || "").trim();
   if (fullName.length < 2) redirect(`/${locale}/ride/profile?error=missing`);
+  const file = formData.get("photo");
+  let photoUrl = customer.photoUrl;
+  if (file instanceof File && file.size > 0) {
+    if (!file.type.startsWith("image/") || file.size > 5_000_000) redirect(`/${locale}/ride/profile?error=missing`);
+    const { mkdir, writeFile } = await import("fs/promises");
+    const path = await import("path");
+    const safe = file.name.replace(/[^a-zA-Z0-9.]+/g, "-").slice(-40);
+    const filename = `photo-${Date.now()}-${safe}`;
+    const dir = path.join(process.cwd(), "data", "uploads", "riders", customer.id);
+    await mkdir(dir, { recursive: true });
+    await writeFile(path.join(dir, filename), Buffer.from(await file.arrayBuffer()));
+    photoUrl = filename;
+  }
+  const idFile = formData.get("idDocument");
+  let idDocumentUrl = customer.idDocumentUrl;
+  if (idFile instanceof File && idFile.size > 0) {
+    if (!idFile.type.startsWith("image/") || idFile.size > 5_000_000) redirect(`/${locale}/ride/profile?error=missing`);
+    const { mkdir, writeFile } = await import("fs/promises");
+    const path = await import("path");
+    const idName = idFile.name.replace(/[^a-zA-Z0-9.]+/g, "-").slice(-40);
+    const idFilename = `id-${Date.now()}-${idName}`;
+    const dir = path.join(process.cwd(), "data", "uploads", "riders", customer.id);
+    await mkdir(dir, { recursive: true });
+    await writeFile(path.join(dir, idFilename), Buffer.from(await idFile.arrayBuffer()));
+    idDocumentUrl = idFilename;
+  }
+  const next = String(formData.get("next") || "");
+  const safe = next.startsWith(`/${locale}/`) && !next.includes("://") && !next.includes("//") ? next : "";
+  if (!photoUrl || !idDocumentUrl) redirect(`/${locale}/ride/profile?error=missing`);
   const womenOnly = formData.get("womenOnly") === "on";
   const accessibility = String(formData.get("accessibility") || "") || null;
   await prisma.customer.update({
@@ -54,6 +119,8 @@ export async function saveProfile(formData: FormData) {
       email: String(formData.get("email") || "") || null,
       gender: String(formData.get("gender") || "unspecified"),
       language: locale === "ar" ? "ar" : "en",
+      photoUrl,
+      idDocumentUrl,
       emergencyName: String(formData.get("emergencyName") || "") || null,
       emergencyPhone: String(formData.get("emergencyPhone") || "") || null,
     },
@@ -63,7 +130,7 @@ export async function saveProfile(formData: FormData) {
     update: { womenOnly, accessibility, quietRide: formData.get("quietRide") === "on" },
     create: { id: nid("pref"), customerId: customer.id, womenOnly, accessibility, quietRide: formData.get("quietRide") === "on" },
   });
-  redirect(`/${locale}/ride?ok=saved`);
+  redirect(safe || `/${locale}/ride?ok=saved`);
 }
 
 export async function saveCommute(formData: FormData) {
@@ -148,6 +215,7 @@ export async function createBooking(formData: FormData) {
   const pickupStopId = String(formData.get("pickupStopId") || "");
   const dropStopId = String(formData.get("dropStopId") || "");
   const product = String(formData.get("product") || "single") === "monthly" ? "monthly" : "single";
+  const rideMode = String(formData.get("rideMode") || "shared") === "private" ? "private" : "shared";
   const womenOnly = formData.get("womenOnly") === "on";
   if (!routeId || !serviceDate || pickupStopId === dropStopId) redirect(`/${locale}/ride/book?error=same`);
   const route = await prisma.route.findUnique({ where: { id: routeId } });
@@ -160,7 +228,22 @@ export async function createBooking(formData: FormData) {
     where: { customerId: customer.id, routeId, status: "active", product: "monthly" },
   });
   const covered = product === "single" && Boolean(pass);
-  const price = covered ? 0 : product === "monthly" ? route.monthlyPriceAed : route.seatPriceAed;
+  const shared = product === "monthly" ? route.monthlyPriceAed : route.seatPriceAed;
+  const alone = product === "monthly" ? route.monthlyPrivateAed : route.privatePriceAed;
+  const stops = await prisma.stop.findMany({ where: { routeId: route.id } });
+  const toll = quoteToll({
+    routeSlug: route.slug,
+    stops,
+    pickupSlug: pickup.slug,
+    dropSlug: drop.slug,
+    serviceDate,
+    windowLabel,
+    rideMode,
+    trips: product === "monthly" ? 22 : 1,
+  });
+  const fare = covered ? 0 : rideMode === "private" ? alone : shared;
+  const price = fare + (covered ? 0 : toll.chargedAed);
+  const tollNote = toll.lines.map((line) => `${line.nameEn} AED ${line.aed.toFixed(2)}`).join("; ");
   const invoice = covered
     ? null
     : await prisma.invoice.create({
@@ -171,9 +254,9 @@ export async function createBooking(formData: FormData) {
           amountAed: price,
           vatAed: 0,
           status: "open",
-          description: product === "monthly" ? `Monthly pass · ${route.nameEn}` : `Seat · ${route.nameEn} · ${serviceDate}`,
+          description: `${rideMode === "private" ? "Private vehicle" : "Shared seat"} · ${route.nameEn} · ${serviceDate}${tollNote ? ` · ${tollNote}` : ""}`,
           dueDate: serviceDate,
-          note: "VAT is not applied in this demo.",
+          note: "Seat fare plus the published Salik or Darb toll for the gates between these stops. Salik includes 5% VAT. The demo total is rounded to the nearest dirham.",
         },
       });
   const booking = await prisma.booking.create({
@@ -187,6 +270,7 @@ export async function createBooking(formData: FormData) {
       pickupStopId,
       dropStopId,
       product,
+      rideMode,
       priceAed: price,
       status: covered ? "confirmed" : "pending_payment",
       womenOnly,
@@ -328,6 +412,10 @@ export async function sendSos(formData: FormData) {
   const bookingId = String(formData.get("bookingId") || "");
   const booking = await prisma.booking.findFirst({ where: { id: bookingId, customerId: customer.id }, include: { run: true } });
   if (!booking) redirect(`/${locale}/ride`);
+  const openSos = await prisma.ticket.findFirst({
+    where: { customerId: customer.id, runId: booking.runId, kind: "sos", status: "open" },
+  });
+  if (openSos) redirect(`/${locale}/ride/trip/${booking.id}?ok=sos`);
   const ticket = await prisma.ticket.create({
     data: {
       id: nid("tkt"),

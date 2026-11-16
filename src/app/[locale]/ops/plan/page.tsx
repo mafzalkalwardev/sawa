@@ -5,6 +5,7 @@ import { requireStaff } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { dubaiToday } from "@/lib/time";
 import { confirmRecommendation, overrideAssignment, planDay } from "@/server/actions/ops";
+import { drive } from "@/server/routing";
 
 export default async function PlanPage({
   params,
@@ -26,6 +27,8 @@ export default async function PlanPage({
   const customers = await prisma.customer.findMany();
   const names = new Map(customers.map((customer) => [customer.id, customer.fullName]));
   const stops = await prisma.stop.findMany();
+  const corridor = stops.filter((stop) => stop.routeId === "rte_sharjah-dubai").sort((a, b) => a.sequence - b.sequence);
+  const road = await drive(corridor);
   const m = t(locale);
   const ar = locale === "ar";
   return (
@@ -45,7 +48,7 @@ export default async function PlanPage({
       </form>
       <MapView
         points={stops.map((stop) => ({ id: stop.id, lat: stop.lat, lng: stop.lng, label: ar ? stop.nameAr : stop.nameEn, kind: "stop" as const }))}
-        path={stops.filter((stop) => stop.routeId === "rte_sharjah-dubai").sort((a, b) => a.sequence - b.sequence).map((stop) => [stop.lat, stop.lng])}
+        path={road.path}
       />
       {clusters.length === 0 ? <p className="card">{ar ? "لا مجموعات بعد. ابنِ الترشيحات ليوم عمل." : "No clusters yet. Build recommendations for a Sunday–Thursday."}</p> : null}
       {clusters.map((cluster) => {

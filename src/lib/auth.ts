@@ -57,6 +57,7 @@ export async function setSession(session: SessionInput) {
   jar.set(COOKIE, encodeSession(full), {
     httpOnly: true,
     sameSite: "lax",
+    secure: (process.env.NEXT_PUBLIC_APP_URL || "").startsWith("https://"),
     path: "/",
     maxAge: 60 * 60 * 24 * 30,
   });

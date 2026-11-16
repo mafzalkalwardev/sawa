@@ -7,6 +7,8 @@ import { dubaiToday } from "@/lib/time";
 import { driverDocsValid } from "@/server/records";
 import { ensureServiceDay } from "@/server/service-day";
 import { startShift } from "@/server/actions/driver";
+import { acceptRequest } from "@/server/actions/requests";
+import { LiveRefresh } from "@/components/live-refresh";
 
 export default async function DriveHome({
   params,
@@ -20,6 +22,19 @@ export default async function DriveHome({
   const driver = await requireDriver(locale);
   await ensureServiceDay();
   const valid = await driverDocsValid(driver.id, driver.defaultVehicleId);
+  const requests = await prisma.rideRequest.findMany({
+    where: { status: { in: ["queued", "accepted", "agreed"] } },
+    orderBy: { createdAt: "desc" },
+    take: 30,
+  });
+  const routes = await prisma.route.findMany();
+  const people = await prisma.customer.findMany({ where: { id: { in: requests.map((item) => item.customerId) } } });
+  const mine = driver.preferredRouteIds.split(",").map((item) => item.trim());
+  const visible = requests.filter((item) => {
+    const route = routes.find((entry) => entry.id === item.routeId);
+    if (!route || !mine.includes(route.slug)) return false;
+    return item.status === "queued" || item.driverId === driver.id;
+  });
   const run = await prisma.run.findFirst({
     where: { driverId: driver.id, serviceDate: dubaiToday(), status: { not: "cancelled" } },
     include: { route: true, bookings: true },
@@ -28,9 +43,34 @@ export default async function DriveHome({
   const ar = locale === "ar";
   return (
     <>
+      <LiveRefresh />
       <h1>{driver.displayName}</h1>
       <p><span className={`tag ${driver.status === "approved" ? "good" : "warn"}`}>{driver.status}</span> {driver.onShift ? (ar ? "على الوردية" : "On shift") : (ar ? "خارج الوردية" : "Off shift")}</p>
       <Notice locale={locale} code={query.error} ok={query.ok} />
+      <h2>{ar ? "الانتظار" : "Queue"}</h2>
+      {visible.length === 0 ? <p className="card">{ar ? "لا توجد رحلة بانتظارك." : "No ride is waiting on your corridors."}</p> : null}
+      {visible.map((item) => {
+        const route = routes.find((entry) => entry.id === item.routeId);
+        const person = people.find((entry) => entry.id === item.customerId);
+        return (
+          <article key={item.id} className="card">
+            <p className="pill">{item.product === "monthly" ? (ar ? "شهري" : "Monthly") : (ar ? "يوم واحد" : "One day")} · {item.status === "queued" ? (ar ? "بانتظارك" : "Waiting") : item.status === "agreed" ? (ar ? "متفق" : "Agreed") : (ar ? "مقبول" : "Accepted")}</p>
+            {person?.photoUrl ? <img className="avatar" src={`/api/files/riders/${person.id}/${person.photoUrl}`} alt="" /> : null}
+            <h2>{person?.fullName || (ar ? "راكب" : "Rider")}</h2>
+            <p>{route ? (ar ? route.nameAr : route.nameEn) : ""} · {item.windowLabel}</p>
+            <p>{item.offerAed ? `${item.offerAed} AED` : ""}</p>
+            {item.status === "queued" ? (
+              <form action={acceptRequest}>
+                <input type="hidden" name="locale" value={locale} />
+                <input type="hidden" name="requestId" value={item.id} />
+                <button className="btn" type="submit">{ar ? "قبول الرحلة" : "Accept ride"}</button>
+              </form>
+            ) : (
+              <Link className="btn" href={`/${locale}/drive/requests/${item.id}`}>{ar ? "المحادثة والسعر" : "Chat and price"}</Link>
+            )}
+          </article>
+        );
+      })}
       <p className="muted">{m.locationDisclosure}</p>
       {driver.status !== "approved" || !valid ? (
         <p className="alert">{m.errors.shift} <Link href={`/${locale}/drive/documents`}>{m.papers}</Link></p>
@@ -44,7 +84,9 @@ export default async function DriveHome({
         <section className="card">
           <h2>{ar ? run.route.nameAr : run.route.nameEn}</h2>
           <p>{run.shift} · {run.status} · {run.bookings.length} {m.seats}</p>
+          <p className="muted">{driver.baseAddress}</p>
           <Link className="btn" href={`/${locale}/drive/shift`}>{m.today}</Link>
+          <Link className="btn ghost" href={`/${locale}/drive/chat`}>{ar ? "المحادثات" : "Chats"}</Link>
         </section>
       ) : (
         <p className="card">{ar ? "لا توجد رحلة اليوم." : "No run today."}</p>

@@ -48,4 +48,13 @@ export function aed(amount: number, locale: string) {
   }).format(amount);
 }
 
+export function aedExact(amount: number, locale: string) {
+  return new Intl.NumberFormat(locale === "ar" ? "ar-AE" : "en-AE", {
+    style: "currency",
+    currency: "AED",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
 export const DEMO_OTP = process.env.DEMO_OTP || "123456";

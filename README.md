@@ -4,6 +4,20 @@ Sawa books a reserved seat on a licensed shared vehicle for UAE commute corridor
 
 It is not a marketplace where a private-car owner charges strangers for a lift. The database has no supply type for a private car. Running this repository does not authorize passenger transport. A live service still needs written comfort from Dubai RTA, Abu Dhabi’s Integrated Transport Centre, and Sharjah RTA, plus a licensed operator.
 
+## Screens
+
+![English home](docs/screenshots/home-en.png)
+
+![Arabic home, right to left](docs/screenshots/home-ar.png)
+
+![Sharjah–Dubai on the OpenStreetMap road network](docs/screenshots/corridor-map.png)
+
+![Live trip, with the van kept on the road when the phone is off the corridor](docs/screenshots/live-trip.png)
+
+![Driver shift](docs/screenshots/driver-shift.png)
+
+![Staff planning board](docs/screenshots/staff-plan.png)
+
 ## Run it
 
 ```bash
@@ -39,10 +53,10 @@ Card checkout accepts only `4242 4242 4242 4242`. The app stores the last four d
 
 - Marketing site in English and Arabic (real right-to-left layout), with FAQ schema, sitemap, robots, Open Graph, and `/llms.txt`
 - Rider flow: OTP, profile, corridor timetable, single seat or monthly pass, sandbox payment, boarding PIN, live trip, share link, SOS, tickets, cancellation rule, account deletion, large type
-- Driver flow: enrolled login, document upload, shift start only when documents are valid, manifest, PIN boarding, no-show, delay, incident, route simulator, background-location disclosure. A GPS fix more than 40 km from the live corridor is ignored, so a phone outside the UAE does not drag the van off the route.
+- Driver flow: enrolled login, document upload, shift start only when documents are valid, manifest, PIN boarding, no-show, delay, incident, background-location disclosure. The map draws the driving route from OpenStreetMap roads. A phone GPS fix on the corridor moves the van and the ETA. A fix far from the corridor is stored, and the van stays on the road instead of jumping across countries. “Move along the road” steps the van about 3 km along that driving route.
 - Staff CRM: roles, enrollment, document review, planning board with hard filters and weighted scores, confirm or override with an audit reason, live runs, substitution, invoices, refunds, payouts, tickets, CSV import, CSV export, employer view, audit log
 
-Matching hard-fails an unapproved driver, expired documents, a missing operator licence, a double-booked corridor, too few seats, a wheelchair need the vehicle cannot meet, a women-only request without a ladies-licensed driver, a ladies vehicle on a mixed group, and a detour over 12 minutes. Weights: distance 20, detour 20, overlap 15, seat fit 15, schedule 15, rating 5, vehicle 5, women-only fit 5.
+Matching hard-fails an unapproved driver, expired documents, a missing operator licence, a driver already on another corridor that shift, too few seats, a wheelchair need the vehicle cannot meet, a women-only request without a ladies-licensed driver, a ladies vehicle on a mixed group, and a driving detour over 12 minutes. Detour minutes come from the road route, not a fixed penalty. A second SOS on the same trip reuses the open alert. Weights: distance 20, detour 20, overlap 15, seat fit 15, schedule 15, rating 5, vehicle 5, women-only fit 5.
 
 ## Store readiness
 

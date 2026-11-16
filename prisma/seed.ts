@@ -12,6 +12,9 @@ function isoDate(offsetDays: number) {
 }
 
 async function main() {
+  await prisma.chatMessage.deleteMany();
+  await prisma.chatThread.deleteMany();
+  await prisma.rideRequest.deleteMany();
   await prisma.boarding.deleteMany();
   await prisma.stopEvent.deleteMany();
   await prisma.booking.deleteMany();
@@ -113,7 +116,9 @@ async function main() {
         detailEn: route.detailEn,
         detailAr: route.detailAr,
         seatPriceAed: route.seatPriceAed,
+        privatePriceAed: route.privatePriceAed,
         monthlyPriceAed: route.monthlyPriceAed,
+        monthlyPrivateAed: route.monthlyPrivateAed,
         morningTimetableEn: route.morningTimetableEn,
         morningTimetableAr: route.morningTimetableAr,
         eveningTimetableEn: route.eveningTimetableEn,

@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { requireDriver } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { haversineKm } from "@/lib/geo";
+import { drive, onRoad, stepAlongRoad } from "@/server/routing";
 import { nid } from "@/lib/ids";
 import { dubaiToday } from "@/lib/time";
 import { driverDocsValid } from "@/server/records";
@@ -200,14 +201,13 @@ export async function simulateLocation(formData: FormData) {
   const nextEvent = run.stopEvents.find((event) => event.status !== "arrived") ?? run.stopEvents[run.stopEvents.length - 1];
   const stop = nextEvent ? await prisma.stop.findUnique({ where: { id: nextEvent.stopId } }) : null;
   if (!stop) redirect(`/${locale}/drive/shift?error=missing`);
+  const stops = await prisma.stop.findMany({ where: { routeId: run.routeId }, orderBy: { sequence: "asc" } });
+  const road = await drive(stops);
   const reported = { lat: driver.liveLat ?? driver.baseLat ?? stop.lat, lng: driver.liveLng ?? driver.baseLng ?? stop.lng };
-  const from = haversineKm(reported, stop) > 40
-    ? { lat: driver.baseLat ?? stop.lat, lng: driver.baseLng ?? stop.lng }
-    : reported;
-  const lat = from.lat + (stop.lat - from.lat) * 0.5;
-  const lng = from.lng + (stop.lng - from.lng) * 0.5;
-  await prisma.driver.update({ where: { id: driver.id }, data: { liveLat: lat, liveLng: lng, liveAt: new Date() } });
-  await prisma.locationPing.create({ data: { id: nid("png"), driverId: driver.id, lat, lng, source: "simulator" } });
-  const km = haversineKm({ lat, lng }, stop);
+  const from = onRoad(reported, road.path) ? reported : { lat: stops[0]?.lat ?? stop.lat, lng: stops[0]?.lng ?? stop.lng };
+  const next = stepAlongRoad(road.path, from, 3);
+  await prisma.driver.update({ where: { id: driver.id }, data: { liveLat: next.lat, liveLng: next.lng, liveAt: new Date() } });
+  await prisma.locationPing.create({ data: { id: nid("png"), driverId: driver.id, lat: next.lat, lng: next.lng, source: "simulator" } });
+  const km = haversineKm(next, stop);
   redirect(`/${locale}/drive/shift?ok=saved&moved=${Math.round(km * 10) / 10}`);
 }

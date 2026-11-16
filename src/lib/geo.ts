@@ -17,6 +17,55 @@ export function minutesAtPeak(km: number) {
   return Math.max(1, Math.round((km / speedKmh) * 60));
 }
 
+function localKm(origin: LatLng, point: LatLng) {
+  return {
+    x: (point.lng - origin.lng) * 111 * Math.cos((origin.lat * Math.PI) / 180),
+    y: (point.lat - origin.lat) * 111,
+  };
+}
+
+export function distanceToPathKm(point: LatLng, path: LatLng[]) {
+  if (path.length === 0) return Number.POSITIVE_INFINITY;
+  let best = haversineKm(point, path[0]);
+  for (let index = 0; index < path.length - 1; index += 1) {
+    const start = path[index];
+    const end = path[index + 1];
+    const origin = localKm(start, point);
+    const delta = localKm(start, end);
+    const length = delta.x * delta.x + delta.y * delta.y;
+    const t = length === 0 ? 0 : Math.min(1, Math.max(0, (origin.x * delta.x + origin.y * delta.y) / length));
+    const dropped = Math.hypot(origin.x - delta.x * t, origin.y - delta.y * t);
+    if (dropped < best) best = dropped;
+  }
+  return best;
+}
+
+export function advanceAlong(path: LatLng[], from: LatLng, km: number): LatLng {
+  if (path.length === 0) return from;
+  let nearest = 0;
+  let best = Number.POSITIVE_INFINITY;
+  path.forEach((point, index) => {
+    const distance = haversineKm(from, point);
+    if (distance < best) {
+      best = distance;
+      nearest = index;
+    }
+  });
+  let left = km;
+  for (let index = nearest; index < path.length - 1; index += 1) {
+    const step = haversineKm(path[index], path[index + 1]);
+    if (step >= left) {
+      const t = step === 0 ? 0 : left / step;
+      return {
+        lat: path[index].lat + (path[index + 1].lat - path[index].lat) * t,
+        lng: path[index].lng + (path[index + 1].lng - path[index].lng) * t,
+      };
+    }
+    left -= step;
+  }
+  return path[path.length - 1];
+}
+
 export function nearestStop<T extends LatLng & { id: string }>(
   point: LatLng,
   stops: T[],

@@ -7,15 +7,24 @@ export async function GET(_request: Request, context: { params: Promise<{ path: 
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { path: parts } = await context.params;
-  if (parts.length !== 2) return NextResponse.json({ error: "bad" }, { status: 400 });
-  const [driverId, name] = parts;
-  if (session.kind === "driver" && session.id !== driverId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  if (session.kind === "rider") return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  if (name.includes("..") || driverId.includes("..")) return NextResponse.json({ error: "bad" }, { status: 400 });
-  const file = path.join(process.cwd(), "data", "uploads", driverId, name);
+  if (parts.some((part) => part.includes(".."))) return NextResponse.json({ error: "bad" }, { status: 400 });
+  let file = "";
+  if (parts[0] === "riders" && parts.length === 3) {
+    const customerId = parts[1];
+    if (session.kind === "rider" && session.id !== customerId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    file = path.join(process.cwd(), "data", "uploads", "riders", customerId, parts[2]);
+  } else if (parts.length === 2) {
+    const [driverId, name] = parts;
+    if (session.kind === "driver" && session.id !== driverId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    if (session.kind === "rider") return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    file = path.join(process.cwd(), "data", "uploads", driverId, name);
+  } else {
+    return NextResponse.json({ error: "bad" }, { status: 400 });
+  }
   try {
     const bytes = await readFile(file);
-    return new NextResponse(bytes, { headers: { "content-type": "application/octet-stream" } });
+    const type = file.endsWith(".png") ? "image/png" : file.endsWith(".webp") ? "image/webp" : "image/jpeg";
+    return new NextResponse(bytes, { headers: { "content-type": type } });
   } catch {
     return NextResponse.json({ error: "missing" }, { status: 404 });
   }

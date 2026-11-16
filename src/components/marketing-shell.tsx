@@ -10,7 +10,6 @@ export async function MarketingShell({ locale, children }: { locale: string; chi
   return (
     <>
       <a className="skip" href="#main">{locale === "ar" ? "تخطي إلى المحتوى" : "Skip to content"}</a>
-      <div className="banner">{m.demo}</div>
       <div className="wrap">
         <header className="site-header">
           <Link className="brand" href={`/${locale}`}>{m.brand}</Link>
@@ -30,11 +29,12 @@ export async function MarketingShell({ locale, children }: { locale: string; chi
         <footer className="site-footer">
           <div>
             <strong>{m.brand}</strong>
-            <p className="muted">{m.demo}</p>
+            <p className="muted">{locale === "ar" ? "الشارقة، عجمان، دبي، أبوظبي." : "Sharjah, Ajman, Dubai, Abu Dhabi."}</p>
           </div>
           <nav className="nav">
             <Link href={`/${locale}/privacy`}>{m.privacy}</Link>
             <Link href={`/${locale}/terms`}>{m.terms}</Link>
+            <a href="/sawa.apk">{locale === "ar" ? "تطبيق أندرويد" : "Android app"}</a>
             <Link href={`/${locale}/drive/login`}>{m.driveApp}</Link>
             <Link href={`/${locale}/ops/login`}>{m.staffLogin}</Link>
           </nav>

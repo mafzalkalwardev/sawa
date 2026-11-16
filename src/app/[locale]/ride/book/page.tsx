@@ -9,7 +9,7 @@ export default async function BookPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; product?: string }>;
 }) {
   const { locale } = await params;
   const query = await searchParams;
@@ -26,14 +26,18 @@ export default async function BookPage({
       <BookForm
         locale={locale}
         date={dubaiToday()}
+        initialProduct={query.product || "single"}
         routes={routes.map((route) => ({
           id: route.id,
+          slug: route.slug,
           nameEn: route.nameEn,
           nameAr: route.nameAr,
           seatPriceAed: route.seatPriceAed,
+          privatePriceAed: route.privatePriceAed,
           monthlyPriceAed: route.monthlyPriceAed,
+          monthlyPrivateAed: route.monthlyPrivateAed,
           womenOnlyAvailable: route.womenOnlyAvailable,
-          stops: route.stops.map((stop) => ({ id: stop.id, nameEn: stop.nameEn, nameAr: stop.nameAr })),
+          stops: route.stops.map((stop) => ({ id: stop.id, slug: stop.slug, sequence: stop.sequence, nameEn: stop.nameEn, nameAr: stop.nameAr })),
         }))}
       />
     </>

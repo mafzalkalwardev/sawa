@@ -29,6 +29,7 @@ export default function MapCanvas({ points, path }: { points: MapPoint[]; path?:
           .addTo(map);
         bounds.push([point.lat, point.lng]);
       }
+      if (path) bounds.push(...path);
       if (bounds.length > 1) map.fitBounds(bounds, { padding: [24, 24] });
     })();
     return () => {

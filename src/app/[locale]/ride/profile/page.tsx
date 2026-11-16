@@ -10,10 +10,11 @@ export default async function ProfilePage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; next?: string }>;
 }) {
   const { locale } = await params;
   const query = await searchParams;
+  const next = typeof query.next === "string" && query.next.startsWith(`/${locale}/`) ? query.next : "";
   const customer = await requireRider(locale);
   const pref = await prisma.preference.findUnique({ where: { customerId: customer.id } });
   const m = t(locale);
@@ -24,6 +25,11 @@ export default async function ProfilePage({
       <Notice locale={locale} code={query.error} />
       <form className="stack" action={saveProfile}>
         <input type="hidden" name="locale" value={locale} />
+        {next ? <input type="hidden" name="next" value={next} /> : null}
+        {customer.photoUrl ? <img className="avatar" src={`/api/files/riders/${customer.id}/${customer.photoUrl}`} alt="" /> : <div className="avatar empty" />}
+        <label>{ar ? "صورة الوجه" : "Profile photo"}<input name="photo" type="file" accept="image/*" required={!customer.photoUrl} /></label>
+        {customer.idDocumentUrl ? <img className="avatar" src={`/api/files/riders/${customer.id}/${customer.idDocumentUrl}`} alt="" /> : null}
+        <label>{ar ? "صورة الهوية" : "Emirates ID photo"}<input name="idDocument" type="file" accept="image/*" required={!customer.idDocumentUrl} /></label>
         <label>{m.name}<input name="fullName" defaultValue={customer.fullName} required /></label>
         <label>{m.email}<input name="email" type="email" defaultValue={customer.email ?? ""} /></label>
         <label>{ar ? "الجنس" : "Gender"}
