@@ -60,7 +60,7 @@ export default async function RideHome({
           <p>{booking.windowLabel} · {booking.serviceDate}</p>
           {booking.pin ? <p className="pin" aria-label={m.pin}>{booking.pin}</p> : null}
           <p>{booking.run?.vehicle ? `${booking.run.vehicle.plate} · ${booking.run.driver.displayName}` : (ar ? "بانتظار مركبة مرخّصة." : "Waiting for a licensed vehicle.")}</p>
-          <Link className="btn" href={`/${locale}/ride/trip/${booking.id}`}>{ar ? "الرحلة" : "Open trip"}</Link>
+          <Link className="btn" href={`/${locale}/ride/trip/${booking.id}`}>{booking.status === "boarded" ? (ar ? "أنت في المركبة" : "You're on the van") : booking.status === "completed" ? (ar ? "وصلت" : "You're there") : (ar ? "المركبة قادمة" : "The van is coming")}</Link>
           {booking.run ? <Link className="btn ghost" href={`/${locale}/ride/chat/${booking.id}`}>{m.chat}</Link> : null}
         </section>
       ) : (

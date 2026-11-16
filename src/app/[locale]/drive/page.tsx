@@ -49,6 +49,12 @@ export default async function DriveHome({
       <h1>{driver.displayName}</h1>
       <p><span className={`tag ${driver.status === "approved" ? "good" : "warn"}`}>{driver.status === "approved" ? (ar ? "مقبول" : "Approved") : driver.status === "submitted" ? (ar ? "بانتظار المراجعة" : "Waiting for review") : driver.status === "suspended" ? (ar ? "موقوف" : "Suspended") : driver.status}</span> {driver.onShift ? (ar ? "على الوردية" : "On shift") : (ar ? "خارج الوردية" : "Off shift")}</p>
       <Notice locale={locale} code={query.error} ok={query.ok} />
+      {run ? (
+        <Link className="choice" href={`/${locale}/drive/shift`}>
+          <span><strong>{ar ? "مركبة اليوم" : "Today's van"}</strong><span>{ar ? run.route.nameAr : run.route.nameEn} · {run.bookings.filter((item) => item.status !== "cancelled").length} {ar ? "ركاب" : "passengers"}</span></span>
+          <strong>→</strong>
+        </Link>
+      ) : null}
       <h2>{ar ? "رحلات بانتظارك" : "Rides waiting for you"}</h2>
       {visible.length === 0 ? <p className="card">{ar ? "لا توجد رحلة على طريقك الآن." : "No ride is waiting on your road right now."}</p> : null}
       {visible.map((item) => {

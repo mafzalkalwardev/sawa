@@ -32,8 +32,8 @@ export function LiveTrip({ runId, initial, locale }: { runId: string; initial: L
       {data.awayKm != null ? (
         <p className="alert">
           {locale === "ar"
-            ? `موقع الهاتف يبعد ${data.awayKm} كم عن الممر. تبقى المركبة على الطريق حتى يصل الموقع إلى المسار.`
-            : `Phone GPS is ${data.awayKm} km off this corridor. The van stays on the road until the fix is on the route.`}
+            ? `الهاتف ليس على هذا الطريق، لذلك تبقى المركبة على المسار.`
+            : `The phone is not on this road, so the van stays on the route.`}
         </p>
       ) : null}
       <p className="meta"><span>{data.driver}</span><span>{data.plate}</span></p>

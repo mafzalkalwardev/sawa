@@ -7,6 +7,7 @@ import { requireRider } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { headers } from "next/headers";
 import { cancelBooking, sendSos } from "@/server/actions/rider";
+import { LiveRefresh } from "@/components/live-refresh";
 import { awayFromRoadKm, drive, onRoad } from "@/server/routing";
 
 export default async function TripPage({
@@ -41,18 +42,30 @@ export default async function TripPage({
   const ping = driver ? await prisma.locationPing.findFirst({ where: { driverId: driver.id }, orderBy: { createdAt: "desc" } }) : null;
   const awayKm = road && ping ? awayFromRoadKm(ping, road.path) : null;
   const eta = marker && pickup ? (await drive([marker, pickup])).durationMin : null;
-  const host = (await headers()).get("host");
-  const share = booking.shareToken ? `http://${host}/${locale}/share/${booking.shareToken}` : "";
+  const host = (await headers()).get("x-forwarded-host") || (await headers()).get("host");
+  const share = booking.shareToken ? `${process.env.NEXT_PUBLIC_APP_URL || `https://${host}`}/${locale}/share/${booking.shareToken}` : "";
+  const state = booking.status === "completed"
+    ? (ar ? "وصلت." : "You're there.")
+    : booking.status === "boarded"
+      ? (ar ? "أنت في المركبة." : "You're on the van.")
+      : booking.status === "no_show"
+        ? (ar ? "السائق سجّل أنك لم تكن عند الموقف." : "The driver marked that you were not at the stop.")
+        : booking.status === "cancelled"
+          ? (ar ? "أُلغيت هذه الرحلة." : "This ride was cancelled.")
+          : booking.run
+            ? (ar ? "المركبة قادمة. أظهر هذا الرقم للسائق." : "The van is coming. Show this number to the driver.")
+            : (ar ? "الرحلة مؤكدة. بانتظار مركبة على هذا الطريق." : "The ride is confirmed. Waiting for a van on this road.");
   const points = [
     ...stops.map((stop) => ({ id: stop.id, lat: stop.lat, lng: stop.lng, label: ar ? stop.nameAr : stop.nameEn, kind: "stop" as const })),
     ...(marker && driver ? [{ id: "live", lat: marker.lat, lng: marker.lng, label: driver.displayName, kind: "live" as const }] : []),
   ];
   return (
     <>
-      <h1>{ar ? "رحلتك" : "Your trip"}</h1>
+      <LiveRefresh />
+      <h1>{state}</h1>
       <Notice locale={locale} ok={query.ok} code={query.error} />
-      {booking.pin ? <p className="pin">{booking.pin}</p> : null}
-      <p className="muted">{m.pin}</p>
+      {booking.pin && booking.status === "confirmed" ? <p className="pin">{booking.pin}</p> : null}
+      {booking.pin && booking.status === "confirmed" ? <p className="muted">{ar ? "هذا رقم الركوب. يكتبه السائق عند الموقف." : "This is your pickup number. The driver types it at the stop."}</p> : null}
       {booking.run ? (
         <LiveTrip
           locale={locale}
@@ -71,10 +84,10 @@ export default async function TripPage({
           }}
         />
       ) : (
-        <p className="card">{ar ? "الطلب مؤكد. بانتظار مركبة على هذا الممر." : "Order confirmed. Waiting for a vehicle on this corridor."}</p>
+        <p className="card">{ar ? "بانتظار مركبة على هذا الطريق." : "Waiting for a van on this road."}</p>
       )}
       <p>{pickup ? (ar ? pickup.nameAr : pickup.nameEn) : ""} → {drop ? (ar ? drop.nameAr : drop.nameEn) : ""}</p>
-      <p>{booking.windowLabel} · {booking.rideMode === "private" ? (ar ? "مركبة وحدك" : "Vehicle alone") : (ar ? "مقعد مشترك" : "Shared seat")} · {booking.priceAed} AED</p>
+      <p>{booking.windowLabel} · {booking.rideMode === "private" ? (ar ? "أنا فقط" : "Just me") : (ar ? "شارك المركبة" : "Share the van")} · {booking.priceAed} AED</p>
       <p className="muted">{ar ? "المبلغ المتفق عليه مع السائق." : "The amount agreed with the driver."}</p>
       {booking.run ? <p><Link className="btn" href={`/${locale}/ride/chat/${booking.id}`}>{ar ? "محادثة السائق" : "Chat with the driver"}</Link></p> : null}
       {share ? <p><span>{m.share}</span><br /><a href={share}>{share}</a></p> : null}
@@ -89,7 +102,7 @@ export default async function TripPage({
           <input type="hidden" name="locale" value={locale} />
           <input type="hidden" name="bookingId" value={booking.id} />
           <p className="muted">{m.cancelRule}</p>
-          <button className="btn ghost" type="submit">{ar ? "إلغاء المقعد" : "Cancel seat"}</button>
+          <button className="btn ghost" type="submit">{ar ? "إلغاء الرحلة" : "Cancel this ride"}</button>
         </form>
       ) : null}
       <p><Link href={`/${locale}/ride/help`}>{m.help}</Link> · <Link href={`/${locale}/privacy`}>{m.privacy}</Link></p>

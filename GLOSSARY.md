@@ -14,4 +14,10 @@
 
 **Agreed fare.** The amount both the passenger and the driver accept.
 
-**Confirmed ride.** The ride after both people agree the fare. It has a pickup pin and a vehicle.
+**Confirmed ride.** The ride after both people agree the fare. It has a pickup number and a vehicle.
+
+**Pickup number.** The digits the passenger shows the driver at the stop.
+
+**Today's van.** The driver's list of people for the confirmed ride that day.
+
+**On the van.** The driver has typed the passenger's pickup number.

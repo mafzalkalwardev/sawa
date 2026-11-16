@@ -4,7 +4,7 @@ import { t } from "@/i18n/copy";
 import { requireDriver } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { dubaiToday } from "@/lib/time";
-import { arriveStop, boardWithPin, completeRun, endShift, markNoShow, reportDelay, reportIncident, simulateLocation } from "@/server/actions/driver";
+import { arriveStop, boardWithPin, completeRun, endShift, markNoShow, reportDelay, reportIncident } from "@/server/actions/driver";
 import { awayFromRoadKm, drive } from "@/server/routing";
 
 export default async function ShiftPage({
@@ -37,35 +37,35 @@ export default async function ShiftPage({
   return (
     <>
       <LocationPublisher enabled={driver.onShift} />
-      <h1>{m.today}</h1>
+      <h1>{ar ? "مركبة اليوم" : "Today's van"}</h1>
       <Notice locale={locale} ok={query.ok} code={query.error} />
-      {!run ? <p>{ar ? "لا توجد رحلة." : "No run."}</p> : (
+      {!run ? <p className="card">{ar ? "لا توجد رحلة مؤكدة لليوم." : "No ride is confirmed for today."}</p> : (
         <>
-          <p>{ar ? run.route.nameAr : run.route.nameEn} · {run.vehicle.plate} · {run.status}</p>
-          {awayKm != null ? <p className="alert">{ar ? `موقع الهاتف يبعد ${awayKm} كم عن الممر. التحريك يبقى على طريق القيادة.` : `Phone GPS is ${awayKm} km off this corridor. Moving the van stays on the driving route.`}</p> : null}
+          <p>{ar ? run.route.nameAr : run.route.nameEn} · {run.vehicle.plate}</p>
+          {awayKm != null ? <p className="alert">{ar ? "الهاتف ليس على هذا الطريق، لذلك تبقى المركبة على المسار." : "The phone is not on this road, so the van stays on the route."}</p> : null}
           {nextEvent ? (
             <form action={arriveStop}>
               <input type="hidden" name="locale" value={locale} />
               <input type="hidden" name="eventId" value={nextEvent.id} />
-              <p>{ar ? stopName.get(nextEvent.stopId)?.nameAr : stopName.get(nextEvent.stopId)?.nameEn}</p>
-              <button className="btn" type="submit">{m.arrived}</button>
+              <p>{ar ? "المحطة التالية" : "Next stop"}: {ar ? stopName.get(nextEvent.stopId)?.nameAr : stopName.get(nextEvent.stopId)?.nameEn}</p>
+              <button className="btn" type="submit">{ar ? "أنا عند هذا الموقف" : "I'm at this stop"}</button>
             </form>
           ) : null}
-          <form className="row" action={boardWithPin}>
+          <form className="stack" action={boardWithPin}>
             <input type="hidden" name="locale" value={locale} />
-            <label>{m.pin}<input name="pin" inputMode="numeric" required /></label>
-            <button className="btn" type="submit">{m.board}</button>
+            <label>{ar ? "رقم الراكب" : "Passenger's pickup number"}<input name="pin" inputMode="numeric" placeholder="0000" required /></label>
+            <button className="btn" type="submit">{ar ? "هم في المركبة" : "They're on"}</button>
           </form>
           <div className="stack">
-            {run.bookings.map((booking) => (
+            {run.bookings.filter((booking) => booking.status !== "cancelled").map((booking) => (
               <article key={booking.id} className="card">
                 <h2>{booking.customer.fullName}</h2>
-                <p>{booking.status} · {ar ? stopName.get(booking.pickupStopId)?.nameAr : stopName.get(booking.pickupStopId)?.nameEn}</p>
+                <p>{booking.status === "boarded" ? (ar ? "في المركبة" : "On the van") : booking.status === "no_show" ? (ar ? "لم يحضر" : "Didn't show") : booking.status === "completed" ? (ar ? "نزل" : "Dropped off") : (ar ? "ينتظر عند الموقف" : "Waiting at the stop")} · {ar ? stopName.get(booking.pickupStopId)?.nameAr : stopName.get(booking.pickupStopId)?.nameEn}</p>
                 {booking.status === "confirmed" ? (
                   <form action={markNoShow}>
                     <input type="hidden" name="locale" value={locale} />
                     <input type="hidden" name="bookingId" value={booking.id} />
-                    <button className="btn ghost small" type="submit">{m.noShow}</button>
+                    <button className="btn ghost" type="submit">{ar ? "لم يحضر" : "They didn't show"}</button>
                   </form>
                 ) : null}
               </article>
@@ -74,23 +74,19 @@ export default async function ShiftPage({
           <form action={reportDelay} className="stack">
             <input type="hidden" name="locale" value={locale} />
             <input type="hidden" name="runId" value={run.id} />
-            <label>{m.delay}<input name="note" /></label>
-            <button className="btn ghost" type="submit">{m.delay}</button>
+            <label>{ar ? "متأخرون" : "Running late"}<input name="note" placeholder={ar ? "كم دقيقة؟" : "How many minutes?"} /></label>
+            <button className="btn ghost" type="submit">{ar ? "أخبر الركاب" : "Tell the passengers"}</button>
           </form>
           <form action={reportIncident} className="stack">
             <input type="hidden" name="locale" value={locale} />
             <input type="hidden" name="runId" value={run.id} />
-            <label>{m.incident}<textarea name="body" /></label>
-            <button className="btn ghost" type="submit">{m.incident}</button>
-          </form>
-          <form action={simulateLocation}>
-            <input type="hidden" name="locale" value={locale} />
-            <button className="btn" type="submit" disabled={!driver.onShift}>{m.simulate}</button>
+            <label>{ar ? "حدث شيء" : "Something went wrong"}<textarea name="body" /></label>
+            <button className="btn ghost" type="submit">{ar ? "أبلغ العمليات" : "Tell operations"}</button>
           </form>
           <form action={completeRun}>
             <input type="hidden" name="locale" value={locale} />
             <input type="hidden" name="runId" value={run.id} />
-            <button className="btn ghost" type="submit">{m.complete}</button>
+            <button className="btn ghost" type="submit">{ar ? "نزل الجميع" : "Everyone is dropped off"}</button>
           </form>
         </>
       )}
