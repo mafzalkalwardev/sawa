@@ -16,7 +16,7 @@ export default async function HistoryPage({
   const bookings = await prisma.booking.findMany({
     where: { customerId: customer.id },
     orderBy: { serviceDate: "desc" },
-    include: { run: { include: { driver: true } } },
+    include: { run: { include: { driver: true, vehicle: true } } },
     take: 20,
   });
   const routes = await prisma.route.findMany();
@@ -35,7 +35,8 @@ export default async function HistoryPage({
             <article key={booking.id} className="card">
               <h2>{route ? (ar ? route.nameAr : route.nameEn) : ""}</h2>
               <p>{booking.serviceDate} · {booking.shift === "evening" ? (ar ? "مساء" : "Evening") : (ar ? "صباح" : "Morning")} · {words(booking.status)} · {booking.priceAed} AED</p>
-              {booking.run?.driver ? <p>{booking.run.driver.displayName}</p> : null}
+              {booking.run?.driver ? <p>{booking.run.driver.displayName}{booking.run.vehicle ? ` · ${booking.run.vehicle.plate}` : ""}</p> : null}
+              {booking.status === "completed" ? <p className="muted">{ar ? `إيصال · ${booking.priceAed} درهم${booking.walletPaidAed ? ` · ${booking.walletPaidAed} من المحفظة` : ""}` : `Receipt · ${booking.priceAed} AED${booking.walletPaidAed ? ` · ${booking.walletPaidAed} from the wallet` : ""}`}</p> : null}
               {booking.status === "completed" && booking.rating == null ? <RateForm locale={locale} bookingId={booking.id} /> : null}
               {booking.rating ? <p>{ar ? `تقييمك ${booking.rating} من 5` : `You gave ${booking.rating} out of 5`}</p> : null}
             </article>

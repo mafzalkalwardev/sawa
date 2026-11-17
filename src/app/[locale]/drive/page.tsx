@@ -46,6 +46,7 @@ export default async function DriveHome({
   });
   const m = t(locale);
   const ar = locale === "ar";
+  const unread = await prisma.rideUpdate.count({ where: { driverId: driver.id, readAt: null } });
   return (
     <>
       <LiveRefresh />
@@ -53,6 +54,7 @@ export default async function DriveHome({
       <h1>{driver.displayName}</h1>
       <p><span className={`tag ${driver.status === "approved" ? "good" : "warn"}`}>{driver.status === "approved" ? (ar ? "مقبول" : "Approved") : driver.status === "submitted" ? (ar ? "بانتظار المراجعة" : "Waiting for review") : driver.status === "suspended" ? (ar ? "موقوف" : "Suspended") : driver.status}</span> {driver.onShift ? (ar ? "على الوردية" : "On shift") : (ar ? "خارج الوردية" : "Off shift")}</p>
       <Notice locale={locale} code={query.error} ok={query.ok} />
+      <p><Link href={`/${locale}/drive/updates`}>{unread ? (ar ? `تحديثات · ${unread} جديدة` : `Updates · ${unread} new`) : (ar ? "التحديثات" : "Updates")}</Link></p>
       {run ? (
         <Link className="choice" href={`/${locale}/drive/shift`}>
           <span><strong>{ar ? "مركبة اليوم" : "Today's van"}</strong><span>{ar ? run.route.nameAr : run.route.nameEn} · {run.bookings.filter((item) => item.status !== "cancelled").length} {ar ? "ركاب" : "passengers"}</span></span>

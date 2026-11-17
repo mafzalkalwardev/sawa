@@ -564,6 +564,21 @@ model ChatMessage {
   @@index([threadId, createdAt])
 }
 
+model RideUpdate {
+  id         String    @id
+  customerId String?
+  driverId   String?
+  bookingId  String?
+  kind       String
+  bodyEn     String
+  bodyAr     String
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([customerId, createdAt])
+  @@index([driverId, createdAt])
+}
+
 model OtpChallenge {
   id        String   @id
   phone     String

@@ -8,6 +8,7 @@ import { prisma } from "@/lib/db";
 import { haversineKm } from "@/lib/geo";
 import { drive, onRoad, stepAlongRoad } from "@/server/routing";
 import { nid } from "@/lib/ids";
+import { tellRider } from "@/server/updates";
 import { dubaiToday } from "@/lib/time";
 import { driverDocsValid } from "@/server/records";
 
@@ -78,6 +79,7 @@ export async function dropPassenger(formData: FormData) {
   });
   if (!booking) redirect(`/${locale}/drive/shift?error=missing`);
   await prisma.booking.update({ where: { id: booking.id }, data: { status: "completed" } });
+  await tellRider(booking.customerId, "dropped", "You're dropped off. You can rate the ride.", "نزلت. يمكنك تقييم الرحلة.", booking.id);
   redirect(`/${locale}/drive/shift?ok=dropped`);
 }
 
@@ -88,7 +90,11 @@ export async function completeRun(formData: FormData) {
   const run = await prisma.run.findFirst({ where: { id: runId, driverId: driver.id } });
   if (!run) redirect(`/${locale}/drive`);
   const stillWaiting = await prisma.booking.count({ where: { runId: run.id, status: "confirmed" } });
+  const boarded = await prisma.booking.findMany({ where: { runId: run.id, status: "boarded" } });
   await prisma.booking.updateMany({ where: { runId: run.id, status: "boarded" }, data: { status: "completed" } });
+  for (const booking of boarded) {
+    await tellRider(booking.customerId, "dropped", "You're dropped off. You can rate the ride.", "نزلت. يمكنك تقييم الرحلة.", booking.id);
+  }
   if (stillWaiting > 0) redirect(`/${locale}/drive/shift?error=waiting`);
   await prisma.run.update({ where: { id: run.id }, data: { status: "completed", endedAt: new Date() } });
   await prisma.driver.update({
@@ -120,6 +126,7 @@ export async function boardWithPin(formData: FormData) {
     },
   });
   await prisma.booking.update({ where: { id: booking.id }, data: { status: "boarded" } });
+  await tellRider(booking.customerId, "boarded", "You're on the van.", "أنت في المركبة.", booking.id);
   if (run.status === "scheduled") {
     await prisma.run.update({ where: { id: run.id }, data: { status: "live", startedAt: new Date() } });
     await prisma.driver.update({ where: { id: driver.id }, data: { onShift: true, shiftStartedAt: driver.shiftStartedAt ?? new Date() } });
@@ -145,6 +152,7 @@ export async function markNoShow(formData: FormData) {
     },
   });
   await prisma.booking.update({ where: { id: booking.id }, data: { status: "no_show" } });
+  await tellRider(booking.customerId, "noshow", "The driver marked that you were not at the stop.", "سجّل السائق أنك لم تكن عند الموقف.", booking.id);
   redirect(`/${locale}/drive/shift?ok=saved`);
 }
 
@@ -156,6 +164,13 @@ export async function arriveStop(formData: FormData) {
   if (!event || event.run.driverId !== driver.id) redirect(`/${locale}/drive/shift?error=missing`);
   await prisma.stopEvent.update({ where: { id: event.id }, data: { status: "arrived", arrivedAt: new Date() } });
   const stop = await prisma.stop.findUnique({ where: { id: event.stopId } });
+  const waitingHere = await prisma.booking.findMany({
+    where: { runId: event.runId, pickupStopId: event.stopId, status: "confirmed" },
+  });
+  const stopLabel = stop ? { en: stop.nameEn, ar: stop.nameAr } : { en: "the stop", ar: "الموقف" };
+  for (const booking of waitingHere) {
+    await tellRider(booking.customerId, "arrived", `The van is at ${stopLabel.en}.`, `المركبة عند ${stopLabel.ar}.`, booking.id);
+  }
   if (stop) {
     await prisma.driver.update({
       where: { id: driver.id },
@@ -176,6 +191,10 @@ export async function reportDelay(formData: FormData) {
   const run = await prisma.run.findFirst({ where: { id: runId, driverId: driver.id } });
   if (!run || !note) redirect(`/${locale}/drive/shift?error=missing`);
   await prisma.run.update({ where: { id: run.id }, data: { delayNote: note } });
+  const riders = await prisma.booking.findMany({ where: { runId: run.id, status: { in: ["confirmed", "boarded"] } } });
+  for (const booking of riders) {
+    await tellRider(booking.customerId, "delay", `The van is running late. ${note}`, `المركبة متأخرة. ${note}`, booking.id);
+  }
   redirect(`/${locale}/drive/shift?ok=saved`);
 }
 

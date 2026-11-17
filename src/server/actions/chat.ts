@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { say } from "@/server/chat";
+import { tellDriver, tellRider } from "@/server/updates";
 
 export async function sendChat(formData: FormData) {
   const locale = String(formData.get("locale") || "en");
@@ -31,6 +32,12 @@ export async function sendChat(formData: FormData) {
       const other = await prisma.chatThread.findUnique({ where: { requestId: request.id } });
       if (other && other.id !== thread.id) await say(other.id, kind, body);
     }
+  }
+  const preview = body.trim().slice(0, 80);
+  if (kind === "driver") {
+    await tellRider(thread.customerId, "message", `New message: ${preview}`, `رسالة جديدة: ${preview}`, thread.bookingId || undefined);
+  } else {
+    await tellDriver(thread.driverId, "message", `New message: ${preview}`, `رسالة جديدة: ${preview}`, thread.bookingId || undefined);
   }
   const base = session.kind === "driver" ? "drive" : "ride";
   if (requestId) redirect(`/${locale}/${base}/requests/${requestId}`);

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { nid, pinCode, shareToken } from "@/lib/ids";
 import { quoteToll } from "@/lib/tolls";
 import { copyRequestChat, openChat } from "@/server/chat";
+import { tellDriver, tellRider } from "@/server/updates";
 import { joinSharedPool, pooledFare } from "@/server/pool";
 import { createRun, seatsFree } from "@/server/runs";
 import { creditReferral } from "@/server/wallet";
@@ -135,6 +136,10 @@ export async function acceptRequest(formData: FormData) {
         customerId: item.customerId,
       },
     });
+    const person = await prisma.customer.findUnique({ where: { id: item.customerId } });
+    const first = person?.fullName.split(" ")[0] || "A passenger";
+    await tellRider(item.customerId, "accepted", `${driver.displayName} accepted your ride request.`, `${driver.displayName} قبل طلب رحلتك.`);
+    await tellDriver(driver.id, "accepted", `${first} is waiting for a price.`, `${first} بانتظار السعر.`);
   }
   redirect(`/${locale}/drive/requests/${id}`);
 }
@@ -159,6 +164,12 @@ export async function proposeFare(formData: FormData) {
       status: "accepted",
     },
   });
+  if (rider && request.driverId) {
+    await tellDriver(request.driverId, "price", `A new price was sent: ${amount} AED.`, `أُرسل سعر جديد: ${amount} درهم.`);
+  }
+  if (driver) {
+    await tellRider(request.customerId, "price", `A new price was sent: ${amount} AED.`, `أُرسل سعر جديد: ${amount} درهم.`);
+  }
   const base = rider ? "ride" : "drive";
   redirect(`/${locale}/${base}/requests/${id}`);
 }
@@ -178,6 +189,10 @@ export async function agreeFare(formData: FormData) {
     where: { id },
     data: { riderAgreed, driverAgreed, status: riderAgreed && driverAgreed ? "agreed" : request.status },
   });
+  if (riderAgreed && driverAgreed) {
+    if (request.driverId) await tellDriver(request.driverId, "agreed", `The price is agreed: ${request.offerAed} AED.`, `تم الاتفاق على السعر: ${request.offerAed} درهم.`);
+    await tellRider(request.customerId, "agreed", `The price is agreed: ${request.offerAed} AED.`, `تم الاتفاق على السعر: ${request.offerAed} درهم.`);
+  }
   const base = rider ? "ride" : "drive";
   redirect(`/${locale}/${base}/requests/${id}`);
 }
@@ -262,6 +277,10 @@ export async function createOrder(formData: FormData) {
     await prisma.rideRequest.update({ where: { id: item.id }, data: { status: "ordered", bookingId: booking.id } });
     await copyRequestChat(item.id, booking.id);
     await creditReferral(item.customerId);
+    const person = await prisma.customer.findUnique({ where: { id: item.customerId } });
+    const first = person?.fullName.split(" ")[0] || "A passenger";
+    await tellRider(item.customerId, "confirmed", `Your ride is confirmed. Pickup number ${booking.pin}.`, `رحلتك مؤكدة. رقم الركوب ${booking.pin}.`, booking.id);
+    await tellDriver(driver.id, "confirmed", `${first} is confirmed. Pickup number ${booking.pin}.`, `${first} مؤكد. رقم الركوب ${booking.pin}.`, booking.id);
     return booking;
   };
   const booking = await place(request);

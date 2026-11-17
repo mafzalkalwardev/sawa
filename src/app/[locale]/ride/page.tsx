@@ -46,6 +46,7 @@ export default async function RideHome({
     return stop ? (ar ? stop.nameAr : stop.nameEn) : "";
   };
   const first = customer.fullName.split(" ")[0];
+  const unread = await prisma.rideUpdate.count({ where: { customerId: customer.id, readAt: null } });
   return (
     <>
       <div className="hello">
@@ -53,6 +54,12 @@ export default async function RideHome({
         <p className="muted">{weekdayName(today, locale)}</p>
       </div>
       <Notice locale={locale} ok={query.ok} code={query.error} />
+      {unread ? (
+        <Link className="choice" href={`/${locale}/ride/updates`}>
+          <span><strong>{ar ? "تحديثات" : "Updates"}</strong><span>{ar ? `${unread} جديدة` : `${unread} new`}</span></span>
+          <strong>{ar ? "←" : "→"}</strong>
+        </Link>
+      ) : <p><Link href={`/${locale}/ride/updates`}>{ar ? "التحديثات" : "Updates"}</Link></p>}
       {booking ? (
         <section className="ticket">
           <p className="eyebrow">{m.upcoming}</p>
