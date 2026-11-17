@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { windows } from "@/content/network";
 import { t } from "@/i18n/copy";
@@ -20,22 +21,39 @@ type RouteOption = {
   stops: Stop[];
 };
 
-export function BookForm({ locale, routes, date, initialProduct = "single" }: { locale: string; routes: RouteOption[]; date: string; initialProduct?: string }) {
+type SavedCommute = { routeId: string; homeId: string; workId: string } | null;
+
+function commuteEnds(route: RouteOption | undefined, saved: SavedCommute, shift: "morning" | "evening") {
+  if (!route) return { pickup: "", drop: "" };
+  if (saved && route.id === saved.routeId) {
+    const home = route.stops.find((stop) => stop.id === saved.homeId);
+    const work = route.stops.find((stop) => stop.id === saved.workId);
+    if (home && work && home.id !== work.id) {
+      return shift === "evening" ? { pickup: work.id, drop: home.id } : { pickup: home.id, drop: work.id };
+    }
+  }
+  return { pickup: route.stops[0]?.id ?? "", drop: route.stops.at(-1)?.id ?? "" };
+}
+
+export function BookForm({ locale, routes, date, initialProduct = "single", saved = null }: { locale: string; routes: RouteOption[]; date: string; initialProduct?: string; saved?: SavedCommute }) {
   const m = t(locale);
   const ar = locale === "ar";
-  const [routeId, setRouteId] = useState(routes[0]?.id ?? "");
+  const savedRoute = saved && routes.some((item) => item.id === saved.routeId) ? saved.routeId : "";
+  const [routeId, setRouteId] = useState(savedRoute || routes[0]?.id || "");
   const [product, setProduct] = useState(initialProduct === "monthly" ? "monthly" : "single");
   const [rideMode, setRideMode] = useState<"shared" | "private">("shared");
   const [shift, setShift] = useState<"morning" | "evening">("morning");
   const [serviceDate, setServiceDate] = useState(date);
   const [windowLabel, setWindowLabel] = useState<string>(windows.morning[1].en);
   const route = useMemo(() => routes.find((item) => item.id === routeId) ?? routes[0], [routeId, routes]);
-  const [pickupId, setPickupId] = useState(route?.stops[0]?.id ?? "");
-  const [dropId, setDropId] = useState(route?.stops[route.stops.length - 1]?.id ?? "");
+  const initialEnds = commuteEnds(route, saved, "morning");
+  const [pickupId, setPickupId] = useState(initialEnds.pickup);
+  const [dropId, setDropId] = useState(initialEnds.drop);
   useEffect(() => {
-    setPickupId(route?.stops[0]?.id ?? "");
-    setDropId(route?.stops.at(-1)?.id ?? "");
-  }, [route?.id]);
+    const next = commuteEnds(route, saved, shift);
+    setPickupId(next.pickup);
+    setDropId(next.drop);
+  }, [route?.id, shift, saved?.routeId, saved?.homeId, saved?.workId]);
   if (!route) return null;
   const shared = product === "monthly" ? route.monthlyPriceAed : route.seatPriceAed;
   const alone = product === "monthly" ? route.monthlyPrivateAed : route.privatePriceAed;
@@ -92,6 +110,7 @@ export function BookForm({ locale, routes, date, initialProduct = "single" }: { 
           {route.stops.map((stop) => <option key={stop.id} value={stop.id}>{ar ? stop.nameAr : stop.nameEn}</option>)}
         </select>
       </label>
+      {saved && route.id === saved.routeId ? <p className="muted">{ar ? "الصباح من المنزل إلى العمل. المساء من العمل إلى المنزل." : "Morning goes from home to work. Evening goes from work to home."}</p> : <p className="muted"><Link href={`/${locale}/ride/settings`}>{ar ? "احفظ المنزل والعمل" : "Save home and work"}</Link></p>}
       <input type="hidden" name="rideMode" value={rideMode} />
       <div className="modes" role="group" aria-label={ar ? "نوع الرحلة" : "Ride type"}>
         <button type="button" className={rideMode === "shared" ? "on" : ""} onClick={() => setRideMode("shared")}>

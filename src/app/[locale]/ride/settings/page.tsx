@@ -3,7 +3,9 @@ import { cookies } from "next/headers";
 import { Notice } from "@/components/notice";
 import { t } from "@/i18n/copy";
 import { requireRider } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import { logout } from "@/server/actions/auth";
+import { PlaceForm } from "@/components/place-form";
 import { deleteAccount, setLargeType } from "@/server/actions/rider";
 import { setWhatsApp } from "@/server/actions/money";
 import { ensureReferralCode, REFERRAL_AED } from "@/server/wallet";
@@ -19,6 +21,12 @@ export default async function SettingsPage({
   const query = await searchParams;
   const customer = await requireRider(locale);
   const code = await ensureReferralCode(customer.id);
+  const routes = await prisma.route.findMany({ where: { active: true }, include: { stops: { orderBy: { sequence: "asc" } } }, orderBy: { nameEn: "asc" } });
+  const places = await prisma.savedPlace.findMany({ where: { customerId: customer.id, kind: { in: ["home", "work"] } } });
+  const home = places.find((place) => place.kind === "home");
+  const work = places.find((place) => place.kind === "work");
+  const homeStop = home?.snappedStopId ? routes.flatMap((route) => route.stops).find((stop) => stop.id === home.snappedStopId) : null;
+  const workStop = work?.snappedStopId ? routes.flatMap((route) => route.stops).find((stop) => stop.id === work.snappedStopId) : null;
   const large = (await cookies()).get("sawa_large")?.value === "1";
   const m = t(locale);
   const ar = locale === "ar";
@@ -29,6 +37,22 @@ export default async function SettingsPage({
       <p>{customer.fullName}</p>
       <p className="card">{ar ? "رمزك" : "Your code"} <strong>{code}</strong><br /><span className="muted">{ar ? `الصديق يحصل على ${REFERRAL_AED} درهم عند أول رحلة، وأنت أيضًا.` : `A friend gets AED ${REFERRAL_AED} on their first ride, and so do you.`}</span></p>
       <p><Link className="btn" href={`/${locale}/ride/wallet`}>{ar ? `المحفظة · ${customer.walletBalanceAed} درهم` : `Wallet · AED ${customer.walletBalanceAed}`}</Link></p>
+      <section className="card stack">
+        <h2>{ar ? "المنزل والعمل" : "Home and work"}</h2>
+        <p className="muted">{homeStop && workStop ? (ar ? `${homeStop.nameAr} → ${workStop.nameAr}` : `${homeStop.nameEn} → ${workStop.nameEn}`) : (ar ? "لم يُحفظ بعد." : "Not saved yet.")}</p>
+        <PlaceForm
+          locale={locale}
+          routeId={homeStop?.routeId || ""}
+          homeId={homeStop?.id || ""}
+          workId={workStop?.id || ""}
+          routes={routes.map((route) => ({
+            id: route.id,
+            nameEn: route.nameEn,
+            nameAr: route.nameAr,
+            stops: route.stops.map((stop) => ({ id: stop.id, nameEn: stop.nameEn, nameAr: stop.nameAr })),
+          }))}
+        />
+      </section>
       <form action={setWhatsApp}>
         <input type="hidden" name="locale" value={locale} />
         <input type="hidden" name="whatsapp" value={customer.whatsappOptIn ? "no" : "yes"} />

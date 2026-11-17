@@ -137,6 +137,26 @@ export async function saveProfile(formData: FormData) {
   redirect(safe || `/${locale}/ride?ok=saved`);
 }
 
+export async function savePlaces(formData: FormData) {
+  const locale = String(formData.get("locale") || "en");
+  const customer = await requireRider(locale);
+  const routeId = String(formData.get("routeId") || "");
+  const homeId = String(formData.get("homeStopId") || "");
+  const workId = String(formData.get("workStopId") || "");
+  if (!routeId || homeId === workId) redirect(`/${locale}/ride/settings?error=same`);
+  const home = await prisma.stop.findUnique({ where: { id: homeId } });
+  const work = await prisma.stop.findUnique({ where: { id: workId } });
+  if (!home || !work || home.routeId !== routeId || work.routeId !== routeId) redirect(`/${locale}/ride/settings?error=missing`);
+  await prisma.savedPlace.deleteMany({ where: { customerId: customer.id, kind: { in: ["home", "work"] } } });
+  await prisma.savedPlace.createMany({
+    data: [
+      { id: nid("plc"), customerId: customer.id, kind: "home", label: "Home", address: home.nameEn, lat: home.lat, lng: home.lng, snappedStopId: home.id },
+      { id: nid("plc"), customerId: customer.id, kind: "work", label: "Work", address: work.nameEn, lat: work.lat, lng: work.lng, snappedStopId: work.id },
+    ],
+  });
+  redirect(`/${locale}/ride/settings?ok=saved`);
+}
+
 export async function saveCommute(formData: FormData) {
   const locale = String(formData.get("locale") || "en");
   const customer = await requireRider(locale);

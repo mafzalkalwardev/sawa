@@ -1,5 +1,6 @@
 import { Notice } from "@/components/notice";
 import { BookForm } from "@/components/book-form";
+import { requireRider } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { dubaiToday } from "@/lib/time";
 import { Steps, passengerSteps } from "@/components/steps";
@@ -13,6 +14,15 @@ export default async function BookPage({
 }) {
   const { locale } = await params;
   const query = await searchParams;
+  const customer = await requireRider(locale);
+  const places = await prisma.savedPlace.findMany({ where: { customerId: customer.id, kind: { in: ["home", "work"] } } });
+  const home = places.find((place) => place.kind === "home");
+  const work = places.find((place) => place.kind === "work");
+  const homeStop = home?.snappedStopId ? await prisma.stop.findUnique({ where: { id: home.snappedStopId } }) : null;
+  const workStop = work?.snappedStopId ? await prisma.stop.findUnique({ where: { id: work.snappedStopId } }) : null;
+  const saved = homeStop && workStop && homeStop.routeId === workStop.routeId && homeStop.id !== workStop.id
+    ? { routeId: homeStop.routeId, homeId: homeStop.id, workId: workStop.id }
+    : null;
   const routes = await prisma.route.findMany({
     where: { active: true },
     include: { stops: { orderBy: { sequence: "asc" } } },
@@ -29,6 +39,7 @@ export default async function BookPage({
         locale={locale}
         date={dubaiToday()}
         initialProduct={query.product || "single"}
+        saved={saved}
         routes={routes.map((route) => ({
           id: route.id,
           slug: route.slug,
