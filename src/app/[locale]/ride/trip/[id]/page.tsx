@@ -137,6 +137,7 @@ export default async function TripPage({
           <button className="btn ghost" type="submit">{ar ? "اطلب التقسيم" : "Ask to split"}</button>
         </form>
       ) : null}
+      {booking.status === "completed" ? <p><Link className="btn ghost" href={`/${locale}/ride/receipt/${booking.id}`}>{ar ? "الإيصال" : "Receipt"}</Link></p> : null}
       {booking.status === "completed" && booking.rating == null ? <RateForm locale={locale} bookingId={booking.id} next={`/${locale}/ride/trip/${booking.id}`} /> : null}
       {booking.rating ? <p>{ar ? `تقييمك ${booking.rating} من 5.` : `You gave ${booking.rating} out of 5.`}</p> : null}
       {booking.run ? <p><Link className="btn" href={`/${locale}/ride/chat/${booking.id}`}>{ar ? "محادثة السائق" : "Chat with the driver"}</Link></p> : null}

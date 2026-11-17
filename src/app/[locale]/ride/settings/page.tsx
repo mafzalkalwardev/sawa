@@ -58,7 +58,7 @@ export default async function SettingsPage({
         <input type="hidden" name="whatsapp" value={customer.whatsappOptIn ? "no" : "yes"} />
         <button className="btn ghost" type="submit">{customer.whatsappOptIn ? (ar ? "إيقاف رسائل واتساب" : "Stop WhatsApp messages") : (ar ? "أريد رسائل واتساب" : "I want WhatsApp messages")}</button>
       </form>
-      <p><Link href={`/${locale}/ride/profile`}>{ar ? "تعديل الملف" : "Edit profile"}</Link></p>
+      <p><Link href={`/${locale}/ride/profile`}>{ar ? "تعديل الملف" : "Edit profile"}</Link> · <Link href={`/${locale}/ride/history`}>{ar ? "رحلاتك" : "Your rides"}</Link></p>
       <p><Link href={`/${locale === "ar" ? "en" : "ar"}/ride/settings`}>{m.language}</Link></p>
       <form action={setLargeType}>
         <input type="hidden" name="locale" value={locale} />

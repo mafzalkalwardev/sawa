@@ -65,6 +65,7 @@ export default async function RideHome({
           <strong>{ar ? "←" : "→"}</strong>
         </Link>
       ) : <p><Link href={`/${locale}/ride/updates`}>{ar ? "التحديثات" : "Updates"}</Link></p>}
+      <p><Link href={`/${locale}/ride/history`}>{ar ? "رحلاتك" : "Your rides"}</Link></p>
       {booking ? (
         <section className="ticket">
           <p className="eyebrow">{m.upcoming}</p>

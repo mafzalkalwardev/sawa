@@ -98,7 +98,7 @@ It is not a marketplace where a private-car owner charges strangers for a lift. 
 - Share link for the trip. SOS alerts Sawa operations. It is not a public emergency service. Police 999, Dubai Police 901, ambulance 998.
 - Rating after the boarded seat is marked dropped off.
 - Updates inside the app when a price is sent, the ride is confirmed, a message arrives, the van reaches the stop, the passenger boards, or the passenger is dropped off. No text message is sent. The Android app shows a phone alert for a new update while Sawa is open. A browser can do the same after permission.
-- A finished ride shows a receipt: the fare, any wallet portion, the driver, and the plate.
+- A finished ride has a receipt: the road, the stops, the fare, the wallet portion, the driver, and the plate. It is a record of the agreed fare, not a receipt from a card company and not a tax invoice.
 - Help, tickets, large type, language, and account deletion in settings. More than 2 hours before the shift, the passenger can cancel the request or the confirmed seat, or change the pickup and drop. A stop change adds or removes the toll share. The wallet amount comes back on an early cancel, and any wallet amount above a lower fare comes back too. A card charge stays a demo credit note, not a bank refund. Inside 2 hours the seat and the stops stay with the driver.
 - Optional WhatsApp opt-in. Staff cannot message a passenger who has not asked.
 

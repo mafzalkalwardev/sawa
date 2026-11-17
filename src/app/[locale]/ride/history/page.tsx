@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Notice } from "@/components/notice";
 import { RateForm } from "@/components/rate-form";
 import { requireRider } from "@/lib/auth";
@@ -36,7 +37,7 @@ export default async function HistoryPage({
               <h2>{route ? (ar ? route.nameAr : route.nameEn) : ""}</h2>
               <p>{booking.serviceDate} · {booking.shift === "evening" ? (ar ? "مساء" : "Evening") : (ar ? "صباح" : "Morning")} · {words(booking.status)} · {booking.priceAed} AED</p>
               {booking.run?.driver ? <p>{booking.run.driver.displayName}{booking.run.vehicle ? ` · ${booking.run.vehicle.plate}` : ""}</p> : null}
-              {booking.status === "completed" ? <p className="muted">{ar ? `إيصال · ${booking.priceAed} درهم${booking.walletPaidAed ? ` · ${booking.walletPaidAed} من المحفظة` : ""}` : `Receipt · ${booking.priceAed} AED${booking.walletPaidAed ? ` · ${booking.walletPaidAed} from the wallet` : ""}`}</p> : null}
+              {booking.status === "completed" ? <p><Link href={`/${locale}/ride/receipt/${booking.id}`}>{ar ? `الإيصال · ${booking.priceAed} درهم` : `Receipt · ${booking.priceAed} AED`}</Link></p> : null}
               {booking.status === "completed" && booking.rating == null ? <RateForm locale={locale} bookingId={booking.id} /> : null}
               {booking.rating ? <p>{ar ? `تقييمك ${booking.rating} من 5` : `You gave ${booking.rating} out of 5`}</p> : null}
             </article>
