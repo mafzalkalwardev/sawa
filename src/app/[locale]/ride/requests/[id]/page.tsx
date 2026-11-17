@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireRider } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { agreeFare, createOrder, proposeFare, withdrawRequest } from "@/server/actions/requests";
+import { agreeFare, changeRequestStops, createOrder, proposeFare, withdrawRequest } from "@/server/actions/requests";
 import { holdsSeat } from "@/server/pool";
 import { hoursUntilShift } from "@/lib/time";
 import { Notice } from "@/components/notice";
@@ -30,8 +30,9 @@ export default async function RiderRequest({
   const stillWaiting = holding.some((item) => item.status === "queued");
   const early = hoursUntilShift(request.serviceDate, request.shift) > 2;
   const route = await prisma.route.findUnique({ where: { id: request.routeId } });
-  const pickup = await prisma.stop.findUnique({ where: { id: request.pickupStopId } });
-  const drop = await prisma.stop.findUnique({ where: { id: request.dropStopId } });
+  const roadStops = await prisma.stop.findMany({ where: { routeId: request.routeId }, orderBy: { sequence: "asc" } });
+  const pickup = roadStops.find((stop) => stop.id === request.pickupStopId);
+  const drop = roadStops.find((stop) => stop.id === request.dropStopId);
   const driver = request.driverId ? await prisma.driver.findUnique({ where: { id: request.driverId } }) : null;
   const thread = await prisma.chatThread.findUnique({ where: { requestId: id }, include: { messages: { orderBy: { createdAt: "asc" } } } });
   const status = request.status === "waiting" ? (ar ? "هذه المركبة ممتلئة. أنت على قائمة الانتظار." : "This van is full. You are on the waitlist.")
@@ -84,6 +85,23 @@ export default async function RiderRequest({
         </form>
       ) : null}
       {request.bookingId ? <p><Link className="btn" href={`/${locale}/ride/trip/${request.bookingId}`}>{ar ? "افتح الرحلة" : "Open the ride"}</Link></p> : null}
+      {canWithdraw ? (
+        <form className="stack" action={changeRequestStops}>
+          <input type="hidden" name="locale" value={locale} />
+          <input type="hidden" name="requestId" value={id} />
+          <label>{ar ? "موقف الصعود" : "Pickup stop"}
+            <select name="pickupStopId" defaultValue={request.pickupStopId}>
+              {roadStops.map((stop) => <option key={stop.id} value={stop.id}>{ar ? stop.nameAr : stop.nameEn}</option>)}
+            </select>
+          </label>
+          <label>{ar ? "موقف النزول" : "Drop stop"}
+            <select name="dropStopId" defaultValue={request.dropStopId}>
+              {roadStops.map((stop) => <option key={stop.id} value={stop.id}>{ar ? stop.nameAr : stop.nameEn}</option>)}
+            </select>
+          </label>
+          <button className="btn ghost" type="submit">{ar ? "غيّر هذين الموقفين" : "Change these stops"}</button>
+        </form>
+      ) : null}
       {canWithdraw ? (
         <form action={withdrawRequest}>
           <input type="hidden" name="locale" value={locale} />

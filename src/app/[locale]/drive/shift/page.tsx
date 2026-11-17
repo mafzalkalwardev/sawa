@@ -61,7 +61,7 @@ export default async function ShiftPage({
             {run.bookings.filter((booking) => booking.status !== "cancelled").map((booking) => (
               <article key={booking.id} className="card">
                 <h2>{booking.customer.fullName}</h2>
-                <p>{booking.status === "boarded" ? (ar ? "في المركبة" : "On the van") : booking.status === "no_show" ? (ar ? "لم يحضر" : "Didn't show") : booking.status === "completed" ? (ar ? "نزل" : "Dropped off") : (ar ? "ينتظر عند الموقف" : "Waiting at the stop")} · {ar ? stopName.get(booking.pickupStopId)?.nameAr : stopName.get(booking.pickupStopId)?.nameEn}</p>
+                <p>{booking.status === "boarded" ? (ar ? "في المركبة" : "On the van") : booking.status === "no_show" ? (ar ? "لم يحضر" : "Didn't show") : booking.status === "completed" ? (ar ? "نزل" : "Dropped off") : (ar ? "ينتظر عند الموقف" : "Waiting at the stop")} · {ar ? stopName.get(booking.pickupStopId)?.nameAr : stopName.get(booking.pickupStopId)?.nameEn} → {ar ? stopName.get(booking.dropStopId)?.nameAr : stopName.get(booking.dropStopId)?.nameEn}</p>
                 <p><Link href={`/${locale}/drive/call/${booking.id}`}>{ar ? "اتصل دون إظهار الرقم" : "Call without showing the number"}</Link></p>
                 {booking.status === "confirmed" ? (
                   <form action={markNoShow}>

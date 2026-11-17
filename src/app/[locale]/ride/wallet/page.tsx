@@ -21,6 +21,8 @@ export default async function WalletPage({
     if (value === "fare") return ar ? "أجرة" : "Fare";
     if (value === "referral") return ar ? "رمز دعوة" : "Referral";
     if (value === "referral-invite") return ar ? "صديق انضم" : "A friend joined";
+    if (value === "cancel") return ar ? "إلغاء" : "Cancelled seat";
+    if (value === "stops") return ar ? "تغيير الموقف" : "Changed stops";
     return value;
   };
   return (

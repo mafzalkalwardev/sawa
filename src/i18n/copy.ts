@@ -139,6 +139,7 @@ const en = {
     split: "The fare split is updated.",
     dropped: "This passenger is dropped off.",
     cancelled: "The seat is cancelled.",
+    changed: "The stops are updated.",
   },
 };
 
@@ -283,6 +284,7 @@ const ar: typeof en = {
     split: "تم تحديث تقسيم الأجرة.",
     dropped: "نزل هذا الراكب.",
     cancelled: "أُلغي المقعد.",
+    changed: "تم تحديث الموقفين.",
   },
 };
 

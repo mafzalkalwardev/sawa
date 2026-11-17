@@ -13,6 +13,7 @@ import { quoteToll } from "@/lib/tolls";
 import { openChat } from "@/server/chat";
 import { audit } from "@/server/records";
 import { createRun } from "@/server/runs";
+import { priceForStops } from "@/server/stops";
 
 function coversRoute(preferred: string, slug: string) {
   return preferred.split(",").map((item) => item.trim()).includes(slug);
@@ -386,6 +387,59 @@ export async function cancelBooking(formData: FormData) {
   const walletLineAr = returned > 0 ? ` عاد ${returned} درهم إلى المحفظة.` : "";
   await tellRider(customer.id, "cancel", `Your seat is cancelled.${walletLine}`, `أُلغي مقعدك.${walletLineAr}`, booking.id);
   redirect(`/${locale}/ride?ok=cancelled`);
+}
+
+export async function changeBookingStops(formData: FormData) {
+  const locale = String(formData.get("locale") || "en");
+  const customer = await requireRider(locale);
+  const bookingId = String(formData.get("bookingId") || "");
+  const booking = await prisma.booking.findFirst({ where: { id: bookingId, customerId: customer.id } });
+  if (!booking || !["confirmed", "pending_payment"].includes(booking.status)) redirect(`/${locale}/ride`);
+  if (hoursUntilShift(booking.serviceDate, booking.shift) <= 2) redirect(`/${locale}/ride/trip/${booking.id}?error=late`);
+  const next = await priceForStops({
+    routeId: booking.routeId,
+    serviceDate: booking.serviceDate,
+    windowLabel: booking.windowLabel,
+    product: booking.product,
+    rideMode: booking.rideMode,
+    pickupStopId: booking.pickupStopId,
+    dropStopId: booking.dropStopId,
+    nextPickupId: String(formData.get("pickupStopId") || ""),
+    nextDropId: String(formData.get("dropStopId") || ""),
+    priceAed: booking.priceAed,
+  });
+  if (!next) redirect(`/${locale}/ride/trip/${booking.id}?error=missing`);
+  if (next.error === "same") redirect(`/${locale}/ride/trip/${booking.id}?error=same`);
+  if (next.error === "unchanged") redirect(`/${locale}/ride/trip/${booking.id}`);
+  let walletPaidAed = booking.walletPaidAed;
+  let returned = 0;
+  if (walletPaidAed > next.priceAed) {
+    returned = walletPaidAed - next.priceAed;
+    walletPaidAed = next.priceAed;
+    await addWallet(customer.id, returned, "stops", booking.id);
+  }
+  await prisma.booking.update({
+    where: { id: booking.id },
+    data: { pickupStopId: next.pickup.id, dropStopId: next.drop.id, priceAed: next.priceAed, walletPaidAed },
+  });
+  const request = await prisma.rideRequest.findFirst({ where: { bookingId: booking.id } });
+  if (request) {
+    await prisma.rideRequest.update({
+      where: { id: request.id },
+      data: { pickupStopId: next.pickup.id, dropStopId: next.drop.id, offerAed: next.priceAed },
+    });
+  }
+  const en = `${next.pickup.nameEn} → ${next.drop.nameEn}. The fare is ${next.priceAed} AED.`;
+  const ar = `${next.pickup.nameAr} → ${next.drop.nameAr}. الأجرة ${next.priceAed} درهم.`;
+  const walletEn = returned > 0 ? ` ${returned} AED is back in the wallet.` : "";
+  const walletAr = returned > 0 ? ` عاد ${returned} درهم إلى المحفظة.` : "";
+  await tellRider(customer.id, "stops", `Your stops are updated. ${en}${walletEn}`, `تم تحديث الموقفين. ${ar}${walletAr}`, booking.id);
+  const driverId = request?.driverId || (booking.runId ? (await prisma.run.findUnique({ where: { id: booking.runId } }))?.driverId : null);
+  if (driverId) {
+    const first = customer.fullName.split(" ")[0] || "A passenger";
+    await tellDriver(driverId, "stops", `${first} changed the stops. ${en}`, `${first} غيّر الموقفين. ${ar}`, booking.id);
+  }
+  redirect(`/${locale}/ride/trip/${booking.id}?ok=changed`);
 }
 
 export async function rateTrip(formData: FormData) {

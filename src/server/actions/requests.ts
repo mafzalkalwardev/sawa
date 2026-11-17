@@ -9,6 +9,7 @@ import { copyRequestChat, openChat } from "@/server/chat";
 import { tellDriver, tellRider } from "@/server/updates";
 import { holdsSeat, joinSharedPool, pooledFare, refreshPool } from "@/server/pool";
 import { hoursUntilShift } from "@/lib/time";
+import { priceForStops } from "@/server/stops";
 import { createRun, seatsFree } from "@/server/runs";
 import { creditReferral } from "@/server/wallet";
 
@@ -332,4 +333,43 @@ export async function withdrawRequest(formData: FormData) {
   }
   await tellRider(customer.id, "cancel", "Your request is cancelled.", "أُلغي طلبك.");
   redirect(`/${locale}/ride?ok=cancelled`);
+}
+
+export async function changeRequestStops(formData: FormData) {
+  const locale = String(formData.get("locale") || "en");
+  const customer = await requireRider(locale);
+  const id = String(formData.get("requestId") || "");
+  const request = await prisma.rideRequest.findFirst({ where: { id, customerId: customer.id } });
+  if (!request || !["queued", "accepted", "agreed", "waiting"].includes(request.status)) redirect(`/${locale}/ride`);
+  if (request.status !== "waiting" && hoursUntilShift(request.serviceDate, request.shift) <= 2) {
+    redirect(`/${locale}/ride/requests/${id}?error=late`);
+  }
+  const next = await priceForStops({
+    routeId: request.routeId,
+    serviceDate: request.serviceDate,
+    windowLabel: request.windowLabel,
+    product: request.product,
+    rideMode: request.rideMode,
+    pickupStopId: request.pickupStopId,
+    dropStopId: request.dropStopId,
+    nextPickupId: String(formData.get("pickupStopId") || ""),
+    nextDropId: String(formData.get("dropStopId") || ""),
+    priceAed: request.offerAed ?? 0,
+  });
+  if (!next) redirect(`/${locale}/ride/requests/${id}?error=missing`);
+  if (next.error === "same") redirect(`/${locale}/ride/requests/${id}?error=same`);
+  if (next.error === "unchanged") redirect(`/${locale}/ride/requests/${id}`);
+  const offerAed = request.offerAed == null ? null : next.priceAed;
+  await prisma.rideRequest.update({
+    where: { id: request.id },
+    data: { pickupStopId: next.pickup.id, dropStopId: next.drop.id, offerAed },
+  });
+  const en = `${next.pickup.nameEn} → ${next.drop.nameEn}.`;
+  const arText = `${next.pickup.nameAr} → ${next.drop.nameAr}.`;
+  await tellRider(customer.id, "stops", `Your stops are updated. ${en}`, `تم تحديث الموقفين. ${arText}`);
+  if (request.driverId) {
+    const first = customer.fullName.split(" ")[0] || "A passenger";
+    await tellDriver(request.driverId, "stops", `${first} changed the stops. ${en}`, `${first} غيّر الموقفين. ${arText}`);
+  }
+  redirect(`/${locale}/ride/requests/${id}?ok=changed`);
 }

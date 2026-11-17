@@ -6,7 +6,7 @@ import { t } from "@/i18n/copy";
 import { requireRider } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { headers } from "next/headers";
-import { cancelBooking, sendSos } from "@/server/actions/rider";
+import { cancelBooking, changeBookingStops, sendSos } from "@/server/actions/rider";
 import { LiveRefresh } from "@/components/live-refresh";
 import { RateForm } from "@/components/rate-form";
 import { CallBox } from "@/components/call-box";
@@ -40,6 +40,7 @@ export default async function TripPage({
   const m = t(locale);
   const ar = locale === "ar";
   const stops = booking.run?.route.stops ?? [];
+  const routeStops = stops.length ? stops : await prisma.stop.findMany({ where: { routeId: booking.routeId }, orderBy: { sequence: "asc" } });
   const driver = booking.run?.driver;
   const road = stops.length ? await drive(stops) : null;
   const live = driver?.liveLat != null && driver.liveLng != null ? { lat: driver.liveLat, lng: driver.liveLng } : null;
@@ -141,6 +142,24 @@ export default async function TripPage({
         <button className="btn danger" type="submit">{m.sos}</button>
       </form>
       <p className="muted">{m.sosBody}</p>
+      {["confirmed", "pending_payment"].includes(booking.status) && hoursUntilShift(booking.serviceDate, booking.shift) > 2 ? (
+        <form className="stack" action={changeBookingStops}>
+          <input type="hidden" name="locale" value={locale} />
+          <input type="hidden" name="bookingId" value={booking.id} />
+          <label>{m.pickup}
+            <select name="pickupStopId" defaultValue={booking.pickupStopId}>
+              {routeStops.map((stop) => <option key={stop.id} value={stop.id}>{ar ? stop.nameAr : stop.nameEn}</option>)}
+            </select>
+          </label>
+          <label>{m.drop}
+            <select name="dropStopId" defaultValue={booking.dropStopId}>
+              {routeStops.map((stop) => <option key={stop.id} value={stop.id}>{ar ? stop.nameAr : stop.nameEn}</option>)}
+            </select>
+          </label>
+          <p className="muted">{ar ? "قبل أكثر من ساعتين يمكنك تغيير الموقفين. حصة سالك تُضاف أو تُنقص. داخل الساعتين يبقى الموقف." : "More than 2 hours ahead, you can change the stops. The toll share is added or removed. Inside 2 hours the stops stay."}</p>
+          <button className="btn ghost" type="submit">{ar ? "غيّر هذين الموقفين" : "Change these stops"}</button>
+        </form>
+      ) : null}
       {["confirmed", "pending_payment"].includes(booking.status) ? (
         hoursUntilShift(booking.serviceDate, booking.shift) > 2 ? (
           <form action={cancelBooking}>
