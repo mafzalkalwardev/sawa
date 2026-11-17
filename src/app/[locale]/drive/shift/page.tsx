@@ -6,7 +6,7 @@ import { requireDriver } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { dubaiToday } from "@/lib/time";
 import { arriveStop, boardWithPin, completeRun, dropPassenger, endShift, markNoShow, reportDelay, reportIncident } from "@/server/actions/driver";
-import { awayFromRoadKm, drive } from "@/server/routing";
+import { awayFromRoadKm, drive, minutesAlong, onRoad } from "@/server/routing";
 
 export default async function ShiftPage({
   params,
@@ -35,6 +35,10 @@ export default async function ShiftPage({
   const road = stops.length ? await drive([...stops].sort((a, b) => a.sequence - b.sequence)) : null;
   const ping = await prisma.locationPing.findFirst({ where: { driverId: driver.id }, orderBy: { createdAt: "desc" } });
   const awayKm = road && ping ? awayFromRoadKm(ping, road.path) : null;
+  const live = driver.liveLat != null && driver.liveLng != null ? { lat: driver.liveLat, lng: driver.liveLng } : null;
+  const liveOnRoad = Boolean(road && live && onRoad(live, road.path));
+  const nextStopPoint = nextEvent ? stopName.get(nextEvent.stopId) : null;
+  const progress = liveOnRoad && road && live && nextStopPoint ? minutesAlong(road, live, nextStopPoint) : { minutes: null, passed: false };
   return (
     <>
       <LocationPublisher enabled={driver.onShift} />
@@ -43,12 +47,15 @@ export default async function ShiftPage({
       {!run ? <p className="card">{ar ? "لا توجد رحلة مؤكدة لليوم." : "No ride is confirmed for today."}</p> : (
         <>
           <p>{ar ? run.route.nameAr : run.route.nameEn} · {run.vehicle.plate}</p>
-          {awayKm != null ? <p className="alert">{ar ? "الهاتف ليس على هذا الطريق، لذلك تبقى المركبة على المسار." : "The phone is not on this road, so the van stays on the route."}</p> : null}
+          {awayKm != null ? <p className="alert">{ar ? "الهاتف ليس على هذا الطريق، لذلك لا يُحسب وقت. تبقى المركبة على المسار." : "The phone is not on this road, so there is no minute count. The van stays on the route."}</p> : null}
+          {awayKm == null && !live && driver.onShift ? <p className="muted">{ar ? "هذا الهاتف لم يشارك موقعاً بعد." : "This phone has not shared a position yet."}</p> : null}
           {nextEvent ? (
             <form action={arriveStop}>
               <input type="hidden" name="locale" value={locale} />
               <input type="hidden" name="eventId" value={nextEvent.id} />
               <p>{ar ? "المحطة التالية" : "Next stop"}: {ar ? stopName.get(nextEvent.stopId)?.nameAr : stopName.get(nextEvent.stopId)?.nameEn}</p>
+              {progress.minutes != null ? <p>{ar ? `حوالي ${progress.minutes} د على هذا الطريق` : `About ${progress.minutes} min along this road`}</p> : null}
+              {progress.passed ? <p className="muted">{ar ? "هذا الموقف خلف المركبة." : "This stop is behind the van."}</p> : null}
               <button className="btn" type="submit">{ar ? "أنا عند هذا الموقف" : "I'm at this stop"}</button>
             </form>
           ) : null}

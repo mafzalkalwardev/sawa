@@ -1,4 +1,4 @@
-import { advanceAlong, distanceToPathKm, haversineKm, minutesAtPeak, type LatLng } from "@/lib/geo";
+import { advanceAlong, alongPathKm, distanceToPathKm, haversineKm, minutesAtPeak, type LatLng } from "@/lib/geo";
 
 export type RoadRoute = {
   path: [number, number][];
@@ -69,6 +69,20 @@ export function awayFromRoadKm(point: LatLng, path: [number, number][]) {
   const line = path.map(([lat, lng]) => ({ lat, lng }));
   const km = distanceToPathKm(point, line);
   return km > ON_ROAD_KM ? Math.round(km) : null;
+}
+
+/** Minutes along this road from one point to a later one. A point already passed has no minute count. */
+export function minutesAlong(road: RoadRoute, from: LatLng, to: LatLng) {
+  const path = road.path.map(([lat, lng]) => ({ lat, lng }));
+  if (path.length < 2 || road.durationMin <= 0) return { minutes: null as number | null, passed: false };
+  let length = 0;
+  for (let index = 0; index < path.length - 1; index += 1) length += haversineKm(path[index], path[index + 1]);
+  if (length <= 0) return { minutes: null, passed: false };
+  const start = alongPathKm(path, from);
+  const end = alongPathKm(path, to);
+  if (end < start - 0.4) return { minutes: null, passed: true };
+  const fraction = Math.min(1, Math.max(0, end - start) / length);
+  return { minutes: Math.max(1, Math.round(road.durationMin * fraction)), passed: false };
 }
 
 export function stepAlongRoad(path: [number, number][], from: LatLng, km = 3) {

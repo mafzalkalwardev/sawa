@@ -112,7 +112,7 @@ It is not a marketplace where a private-car owner charges strangers for a lift. 
 - Call a passenger from the van without showing the number.
 - “Everyone is dropped off” completes boarded seats and ends the shift.
 - History of finished runs.
-- The map uses the OpenStreetMap road network. A GPS fix on the corridor moves the van and the ETA. A fix far from the corridor is stored, and the van stays on the road. “Move along the road” steps the van about 3 km along that route.
+- The map uses the OpenStreetMap road network. While the driver’s phone is on the corridor, the passenger sees about how many minutes remain to their own pickup, or to their drop once they are on the van. The driver sees the same kind of count to the next stop. The count follows the corridor, not a shortcut, and it is not turn-by-turn guidance. A fix far from the corridor is stored, the van stays on the road, and no minute count is shown. “Move along the road” steps the van about 3 km along that route.
 - Background-location copy on the driver home says location continues during a shift.
 
 ### Staff

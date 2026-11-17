@@ -11,7 +11,7 @@ import { LiveRefresh } from "@/components/live-refresh";
 import { RateForm } from "@/components/rate-form";
 import { CallBox } from "@/components/call-box";
 import { answerSplit, offerSplit, payFromWallet } from "@/server/actions/money";
-import { awayFromRoadKm, drive, onRoad } from "@/server/routing";
+import { awayFromRoadKm, drive, minutesAlong, onRoad } from "@/server/routing";
 import { hoursUntilShift } from "@/lib/time";
 
 export default async function TripPage({
@@ -52,7 +52,9 @@ export default async function TripPage({
       : stops[0] ? { lat: stops[0].lat, lng: stops[0].lng } : null;
   const ping = driver ? await prisma.locationPing.findFirst({ where: { driverId: driver.id }, orderBy: { createdAt: "desc" } }) : null;
   const awayKm = road && ping ? awayFromRoadKm(ping, road.path) : null;
-  const eta = marker && pickup ? (await drive([marker, pickup])).durationMin : null;
+  const liveOnRoad = Boolean(road && live && onRoad(live, road.path));
+  const target = booking.status === "boarded" && drop ? drop : pickup;
+  const progress = liveOnRoad && road && live && target ? minutesAlong(road, live, target) : { minutes: null, passed: false };
   const host = (await headers()).get("x-forwarded-host") || (await headers()).get("host");
   const share = booking.shareToken ? `${process.env.NEXT_PUBLIC_APP_URL || `https://${host}`}/${locale}/share/${booking.shareToken}` : "";
   const state = booking.status === "completed"
@@ -84,9 +86,12 @@ export default async function TripPage({
           initial={{
             lat: marker?.lat ?? null,
             lng: marker?.lng ?? null,
-            etaMin: eta,
+            etaMin: progress.minutes,
+            passed: progress.passed,
             awayKm,
-            nextStop: pickup ? (ar ? pickup.nameAr : pickup.nameEn) : null,
+            nextStop: target ? (ar ? target.nameAr : target.nameEn) : null,
+            nextStopEn: target?.nameEn ?? null,
+            nextStopAr: target?.nameAr ?? null,
             delayNote: booking.run.delayNote,
             plate: booking.run.vehicle.plate,
             driver: driver?.displayName ?? null,

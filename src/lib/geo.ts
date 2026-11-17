@@ -40,6 +40,31 @@ export function distanceToPathKm(point: LatLng, path: LatLng[]) {
   return best;
 }
 
+/** Kilometres from the start of the line to the closest point on it. */
+export function alongPathKm(path: LatLng[], point: LatLng) {
+  if (path.length === 0) return 0;
+  if (path.length === 1) return 0;
+  let bestKm = 0;
+  let bestDist = Number.POSITIVE_INFINITY;
+  let walked = 0;
+  for (let index = 0; index < path.length - 1; index += 1) {
+    const start = path[index];
+    const end = path[index + 1];
+    const step = haversineKm(start, end);
+    const origin = localKm(start, point);
+    const delta = localKm(start, end);
+    const length = delta.x * delta.x + delta.y * delta.y;
+    const t = length === 0 ? 0 : Math.min(1, Math.max(0, (origin.x * delta.x + origin.y * delta.y) / length));
+    const dropped = Math.hypot(origin.x - delta.x * t, origin.y - delta.y * t);
+    if (dropped < bestDist) {
+      bestDist = dropped;
+      bestKm = walked + step * t;
+    }
+    walked += step;
+  }
+  return bestKm;
+}
+
 export function advanceAlong(path: LatLng[], from: LatLng, km: number): LatLng {
   if (path.length === 0) return from;
   let nearest = 0;
