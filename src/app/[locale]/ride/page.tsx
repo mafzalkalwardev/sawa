@@ -47,6 +47,11 @@ export default async function RideHome({
   };
   const first = customer.fullName.split(" ")[0];
   const unread = await prisma.rideUpdate.count({ where: { customerId: customer.id, readAt: null } });
+  const openRequests = await prisma.rideRequest.findMany({
+    where: { customerId: customer.id, status: { in: ["queued", "accepted", "agreed", "waiting"] } },
+    orderBy: { createdAt: "desc" },
+    take: 5,
+  });
   return (
     <>
       <div className="hello">
@@ -70,7 +75,17 @@ export default async function RideHome({
           <Link className="btn" href={`/${locale}/ride/trip/${booking.id}`}>{booking.status === "boarded" ? (ar ? "أنت في المركبة" : "You're on the van") : booking.status === "completed" ? (ar ? "وصلت" : "You're there") : (ar ? "المركبة قادمة" : "The van is coming")}</Link>
           {booking.run ? <Link className="btn ghost" href={`/${locale}/ride/chat/${booking.id}`}>{m.chat}</Link> : null}
         </section>
-      ) : (
+      ) : null}
+      {openRequests.map((item) => {
+        const road = routes.find((route) => route.id === item.routeId);
+        return (
+          <Link key={item.id} className="choice" href={`/${locale}/ride/requests/${item.id}`}>
+            <span><strong>{item.status === "waiting" ? (ar ? "قائمة الانتظار" : "Waitlist") : (ar ? "طلب مفتوح" : "Open request")}</strong><span>{road ? (ar ? road.nameAr : road.nameEn) : item.windowLabel}</span></span>
+            <strong>{ar ? "←" : "→"}</strong>
+          </Link>
+        );
+      })}
+      {booking ? null : (
         <Link className="choice" href={`/${locale}/ride/book`}>
           <span><strong>{ar ? "اطلب رحلة" : "Ask for a ride"}</strong><span>{ar ? "الطريق، الوقت، وهل تشارك المركبة" : "The road, the time, and whether you share the van"}</span></span>
           <strong>{ar ? "←" : "→"}</strong>

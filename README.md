@@ -87,7 +87,7 @@ It is not a marketplace where a private-car owner charges strangers for a lift. 
 - One day, or the same road every working day. A monthly ride can be paused.
 - Share the van, or take it alone. A women-only preference is stored with the request.
 - The quote is the seat price plus a share of the road toll. Sharjah–Dubai shared is 100 AED before toll.
-- Shared requests on the same road, day, shift, window, and product join one open van of 4. The listed price falls as seats fill, until someone agrees a price. Private rides do not pool.
+- Shared requests on the same road, day, shift, window, and product join one van of 4. The listed price falls as seats fill, until someone agrees a price. A full van puts the next passenger on a waitlist, and an early cancellation gives them the seat. Private rides do not pool.
 - Optional referral code. Both wallets receive AED 20 when the new passenger’s first non-cancelled booking is created.
 - Wallet top-up of 20, 50, or 100 AED, only when the card starts with `4242 4242 4242 4242`. A confirmed fare can be paid from the balance. The last four digits are stored. No UAE acquirer is connected.
 - Two passengers on the same van can offer a split. The other person accepts or declines. At least 1 AED stays on the original booking.
@@ -99,7 +99,7 @@ It is not a marketplace where a private-car owner charges strangers for a lift. 
 - Rating after the boarded seat is marked dropped off.
 - Updates inside the app when a price is sent, the ride is confirmed, a message arrives, the van reaches the stop, the passenger boards, or the passenger is dropped off. No text message is sent. The Android app shows a phone alert for a new update while Sawa is open. A browser can do the same after permission.
 - A finished ride shows a receipt: the fare, any wallet portion, the driver, and the plate.
-- Help, tickets, the two-hour cancellation rule, large type, language, and account deletion in settings.
+- Help, tickets, large type, language, and account deletion in settings. More than 2 hours before the shift, the passenger can cancel the request or the confirmed seat. The wallet amount comes back. A card charge stays a demo credit note, not a bank refund. Inside 2 hours the seat stays with the driver.
 - Optional WhatsApp opt-in. Staff cannot message a passenger who has not asked.
 
 ### Driver

@@ -71,7 +71,7 @@ export default async function DriveHome({
         if (item.status === "queued" && item.poolId && mates[0]?.id !== item.id) return null;
         const shown = item.status === "queued" ? mates : [item];
         const names = shown.map((entry) => people.find((personItem) => personItem.id === entry.customerId)?.fullName).filter(Boolean);
-        const filled = pool ? pool.requests.filter((entry) => entry.status !== "cancelled").length : 1;
+        const filled = pool ? pool.requests.filter((entry) => ["queued", "accepted", "agreed", "ordered"].includes(entry.status)).length : 1;
         const fare = shown.reduce((sum, entry) => sum + (entry.offerAed || 0), 0);
         return (
           <article key={item.id} className="card">

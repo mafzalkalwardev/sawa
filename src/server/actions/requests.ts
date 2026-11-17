@@ -7,7 +7,8 @@ import { nid, pinCode, shareToken } from "@/lib/ids";
 import { quoteToll } from "@/lib/tolls";
 import { copyRequestChat, openChat } from "@/server/chat";
 import { tellDriver, tellRider } from "@/server/updates";
-import { joinSharedPool, pooledFare } from "@/server/pool";
+import { holdsSeat, joinSharedPool, pooledFare, refreshPool } from "@/server/pool";
+import { hoursUntilShift } from "@/lib/time";
 import { createRun, seatsFree } from "@/server/runs";
 import { creditReferral } from "@/server/wallet";
 
@@ -52,7 +53,20 @@ export async function requestRide(formData: FormData) {
   let driverId: string | null = null;
   let status = "queued";
   if (rideMode === "shared") {
-    const pool = await joinSharedPool({
+    const already = await prisma.rideRequest.findFirst({
+      where: {
+        customerId: customer.id,
+        routeId,
+        serviceDate,
+        shift,
+        windowLabel,
+        product,
+        rideMode: "shared",
+        status: { in: ["queued", "accepted", "agreed", "ordered", "waiting"] },
+      },
+    });
+    if (already) redirect(`/${locale}/ride/book?error=seat`);
+    const joined = await joinSharedPool({
       routeId,
       serviceDate,
       shift,
@@ -62,18 +76,17 @@ export async function requestRide(formData: FormData) {
       listAed: listed,
       customerId: customer.id,
     });
-    const riding = pool.requests.filter((item) => item.status !== "ordered");
-    const count = riding.length + 1;
-    offerAed = pooledFare(pool.listAed, count);
-    poolId = pool.id;
-    await prisma.rideRequest.updateMany({
-      where: { poolId: pool.id, status: "queued" },
-      data: { offerAed },
-    });
-    if (count >= pool.seats) await prisma.pool.update({ where: { id: pool.id }, data: { status: "full" } });
-    if (pool.driverId) {
-      driverId = pool.driverId;
-      status = "accepted";
+    poolId = joined.pool.id;
+    if (joined.waiting) {
+      status = "waiting";
+      driverId = null;
+    } else {
+      const riding = joined.pool.requests.filter((item) => holdsSeat(item.status));
+      offerAed = pooledFare(joined.pool.listAed, riding.length + 1);
+      if (joined.pool.driverId) {
+        driverId = joined.pool.driverId;
+        status = "accepted";
+      }
     }
   }
   const request = await prisma.rideRequest.create({
@@ -92,9 +105,9 @@ export async function requestRide(formData: FormData) {
       note: note || null,
       status,
       driverId,
-      offerAed,
-      offeredBy: "rider",
-      riderAgreed: true,
+      offerAed: status === "waiting" ? null : offerAed,
+      offeredBy: status === "waiting" ? null : "rider",
+      riderAgreed: status !== "waiting",
     },
   });
   if (driverId) {
@@ -103,6 +116,10 @@ export async function requestRide(formData: FormData) {
       update: { driverId, customerId: customer.id },
       create: { id: nid("chat"), requestId: request.id, driverId, customerId: customer.id },
     });
+  }
+  if (poolId) await refreshPool(poolId);
+  if (status === "waiting") {
+    await tellRider(customer.id, "waitlist", "This van is full. You are on the waitlist.", "هذه المركبة ممتلئة. أنت على قائمة الانتظار.");
   }
   await prisma.preference.upsert({
     where: { customerId: customer.id },
@@ -290,12 +307,29 @@ export async function createOrder(formData: FormData) {
       where: { poolId: request.poolId, status: "agreed", driverId: driver.id, id: { not: request.id } },
     });
     for (const sibling of siblings) await place(sibling);
-    const left = await prisma.rideRequest.count({ where: { poolId: request.poolId, status: { not: "ordered" } } });
-    await prisma.pool.update({
-      where: { id: request.poolId },
-      data: { status: left ? "open" : "confirmed", driverId: driver.id },
-    });
+    await prisma.pool.update({ where: { id: request.poolId }, data: { driverId: driver.id } });
+    await refreshPool(request.poolId);
   }
   if (session.kind === "driver") redirect(`/${locale}/drive`);
   redirect(`/${locale}/ride/trip/${booking.id}?ok=booked`);
+}
+
+export async function withdrawRequest(formData: FormData) {
+  const locale = String(formData.get("locale") || "en");
+  const customer = await requireRider(locale);
+  const id = String(formData.get("requestId") || "");
+  const request = await prisma.rideRequest.findFirst({ where: { id, customerId: customer.id } });
+  if (!request || request.status === "ordered" || request.status === "cancelled") redirect(`/${locale}/ride`);
+  const holding = holdsSeat(request.status);
+  if (holding && hoursUntilShift(request.serviceDate, request.shift) <= 2) {
+    redirect(`/${locale}/ride/requests/${id}?error=late`);
+  }
+  await prisma.rideRequest.update({ where: { id: request.id }, data: { status: "cancelled" } });
+  if (request.poolId) await refreshPool(request.poolId);
+  const person = customer.fullName.split(" ")[0] || "A passenger";
+  if (request.driverId) {
+    await tellDriver(request.driverId, "cancel", `${person} released this seat.`, `${person} ألغى هذا المقعد.`);
+  }
+  await tellRider(customer.id, "cancel", "Your request is cancelled.", "أُلغي طلبك.");
+  redirect(`/${locale}/ride?ok=cancelled`);
 }

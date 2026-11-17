@@ -6,6 +6,9 @@ import { clearSession, requireRider } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { nid, pinCode, shareToken } from "@/lib/ids";
 import { hoursUntilShift } from "@/lib/time";
+import { refreshPool } from "@/server/pool";
+import { tellDriver, tellRider } from "@/server/updates";
+import { addWallet } from "@/server/wallet";
 import { quoteToll } from "@/lib/tolls";
 import { openChat } from "@/server/chat";
 import { audit } from "@/server/records";
@@ -351,8 +354,11 @@ export async function cancelBooking(formData: FormData) {
   const booking = await prisma.booking.findFirst({ where: { id: bookingId, customerId: customer.id } });
   if (!booking || ["cancelled", "completed", "boarded"].includes(booking.status)) redirect(`/${locale}/ride`);
   const early = hoursUntilShift(booking.serviceDate, booking.shift) > 2;
-  await prisma.booking.update({ where: { id: booking.id }, data: { status: "cancelled", runId: null } });
-  if (early && booking.invoiceId && booking.priceAed > 0) {
+  if (!early) redirect(`/${locale}/ride/trip/${booking.id}?error=late`);
+  const returned = booking.walletPaidAed;
+  await prisma.booking.update({ where: { id: booking.id }, data: { status: "cancelled", runId: null, walletPaidAed: 0 } });
+  if (returned > 0) await addWallet(customer.id, returned, "cancel", booking.id);
+  if (booking.invoiceId && booking.priceAed > 0) {
     const invoice = await prisma.invoice.findUnique({ where: { id: booking.invoiceId } });
     if (invoice && invoice.status === "paid") {
       await prisma.invoice.update({ where: { id: invoice.id }, data: { status: "refunded" } });
@@ -361,7 +367,25 @@ export async function cancelBooking(formData: FormData) {
       });
     }
   }
-  redirect(`/${locale}/ride?ok=saved`);
+  const request = await prisma.rideRequest.findFirst({ where: { bookingId: booking.id } });
+  if (request && request.status !== "cancelled") {
+    await prisma.rideRequest.update({ where: { id: request.id }, data: { status: "cancelled" } });
+    if (request.poolId) await refreshPool(request.poolId);
+    if (request.driverId) {
+      const first = customer.fullName.split(" ")[0] || "A passenger";
+      await tellDriver(request.driverId, "cancel", `${first} released this seat.`, `${first} ألغى هذا المقعد.`, booking.id);
+    }
+  } else if (booking.runId) {
+    const run = await prisma.run.findUnique({ where: { id: booking.runId } });
+    if (run) {
+      const first = customer.fullName.split(" ")[0] || "A passenger";
+      await tellDriver(run.driverId, "cancel", `${first} released this seat.`, `${first} ألغى هذا المقعد.`, booking.id);
+    }
+  }
+  const walletLine = returned > 0 ? ` ${returned} AED is back in the wallet.` : "";
+  const walletLineAr = returned > 0 ? ` عاد ${returned} درهم إلى المحفظة.` : "";
+  await tellRider(customer.id, "cancel", `Your seat is cancelled.${walletLine}`, `أُلغي مقعدك.${walletLineAr}`, booking.id);
+  redirect(`/${locale}/ride?ok=cancelled`);
 }
 
 export async function rateTrip(formData: FormData) {

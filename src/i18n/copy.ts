@@ -98,7 +98,7 @@ const en = {
   send: "Send",
   seats: "seats",
   vatNote: "Salik’s gate price already includes VAT. The fare you both agree is the amount for the ride.",
-  cancelRule: "Cancel more than 2 hours before the shift and the seat is released. Inside 2 hours the seat stays with the driver.",
+  cancelRule: "Cancel more than 2 hours before the shift and the seat is released. Money already paid from the wallet comes back. A card charge stays as a demo credit note, not a bank refund. Inside 2 hours the seat stays with the driver.",
   sosBody: "This alerts Sawa operations. It is not a public emergency service. For police use 999. Dubai Police can also be reached on 901. For an ambulance use 998.",
   locationDisclosure: "On shift, this phone shares location with the riders on your run. It stops when the shift ends.",
   forbidden: "Your role cannot do that.",
@@ -123,6 +123,8 @@ const en = {
     split: "That amount cannot be split.",
     optin: "No passenger has asked for WhatsApp yet.",
     waiting: "Some passengers are still waiting at the stop, so this van stays on the shift.",
+    late: "Inside 2 hours the seat stays with the driver.",
+    seat: "You already have an open request for this ride.",
   },
   ok: {
     paid: "Payment recorded.",
@@ -136,6 +138,7 @@ const en = {
     wallet: "The wallet is updated.",
     split: "The fare split is updated.",
     dropped: "This passenger is dropped off.",
+    cancelled: "The seat is cancelled.",
   },
 };
 
@@ -239,7 +242,7 @@ const ar: typeof en = {
   send: "إرسال",
   seats: "مقاعد",
   vatNote: "سعر بوابة سالك يشمل الضريبة. المبلغ الذي تتفقان عليه هو أجرة الرحلة.",
-  cancelRule: "الإلغاء قبل أكثر من ساعتين من الوردية يحرر المقعد. داخل الساعتين يبقى المقعد مع السائق.",
+  cancelRule: "الإلغاء قبل أكثر من ساعتين من الوردية يحرر المقعد. ما دُفع من المحفظة يعود إليها. رسوم البطاقة تبقى إشعار دائن تجريبي، لا استردادًا بنكيًا. داخل الساعتين يبقى المقعد مع السائق.",
   sosBody: "هذا ينبّه عمليات سوى. ليس خدمة طوارئ عامة. للشرطة 999. يمكن الاتصال بشرطة دبي أيضًا على 901. للإسعاف 998.",
   locationDisclosure: "أثناء الوردية يشارك هذا الهاتف الموقع مع ركاب رحلتك. يتوقف عند انتهاء الوردية.",
   forbidden: "صلاحيتك لا تسمح بهذا.",
@@ -264,6 +267,8 @@ const ar: typeof en = {
     split: "لا يمكن تقسيم هذا المبلغ.",
     optin: "لا يوجد راكب طلب واتساب بعد.",
     waiting: "بعض الركاب ما زالوا عند الموقف، لذلك تبقى المركبة على الوردية.",
+    late: "داخل الساعتين يبقى المقعد مع السائق.",
+    seat: "لديك طلب مفتوح على هذه الرحلة.",
   },
   ok: {
     paid: "سُجّل الدفع.",
@@ -277,6 +282,7 @@ const ar: typeof en = {
     wallet: "تم تحديث المحفظة.",
     split: "تم تحديث تقسيم الأجرة.",
     dropped: "نزل هذا الراكب.",
+    cancelled: "أُلغي المقعد.",
   },
 };
 

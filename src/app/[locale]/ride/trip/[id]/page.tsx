@@ -12,6 +12,7 @@ import { RateForm } from "@/components/rate-form";
 import { CallBox } from "@/components/call-box";
 import { answerSplit, offerSplit, payFromWallet } from "@/server/actions/money";
 import { awayFromRoadKm, drive, onRoad } from "@/server/routing";
+import { hoursUntilShift } from "@/lib/time";
 
 export default async function TripPage({
   params,
@@ -141,12 +142,14 @@ export default async function TripPage({
       </form>
       <p className="muted">{m.sosBody}</p>
       {["confirmed", "pending_payment"].includes(booking.status) ? (
-        <form action={cancelBooking}>
-          <input type="hidden" name="locale" value={locale} />
-          <input type="hidden" name="bookingId" value={booking.id} />
-          <p className="muted">{m.cancelRule}</p>
-          <button className="btn ghost" type="submit">{ar ? "إلغاء الرحلة" : "Cancel this ride"}</button>
-        </form>
+        hoursUntilShift(booking.serviceDate, booking.shift) > 2 ? (
+          <form action={cancelBooking}>
+            <input type="hidden" name="locale" value={locale} />
+            <input type="hidden" name="bookingId" value={booking.id} />
+            <p className="muted">{m.cancelRule}</p>
+            <button className="btn ghost" type="submit">{ar ? "إلغاء الرحلة" : "Cancel this ride"}</button>
+          </form>
+        ) : <p className="muted">{m.cancelRule}</p>
       ) : null}
       <p><Link href={`/${locale}/ride/help`}>{m.help}</Link> · <Link href={`/${locale}/privacy`}>{m.privacy}</Link></p>
     </>
