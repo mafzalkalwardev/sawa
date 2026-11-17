@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { otherLocale, swapLocale } from "@/i18n/locale";
 import { t } from "@/i18n/copy";
 import { logout } from "@/server/actions/auth";
+import { UpdateNotifier } from "@/components/update-notifier";
 
 const rider = [
   ["", "home", "home"],
@@ -72,6 +73,7 @@ export async function PhoneShell({
           ) : null}
         </div>
       </header>
+      <UpdateNotifier locale={locale} />
       <main id="main">{children}</main>
       <nav className={`bottom-nav cols-${items.length}`} aria-label={mode}>
         {items.map(([href, key, icon]) => {

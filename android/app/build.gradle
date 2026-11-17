@@ -22,14 +22,14 @@ android {
     productFlavors {
         sideload {
             dimension "distribution"
-            versionCode 4
-            versionName "1.3"
+            versionCode 5
+            versionName "1.4"
         }
         store {
             dimension "distribution"
             applicationId "dev.sawa.store"
-            versionCode 2
-            versionName "1.1"
+            versionCode 3
+            versionName "1.2"
         }
     }
 

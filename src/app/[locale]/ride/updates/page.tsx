@@ -1,3 +1,4 @@
+import { AskPhoneAlert } from "@/components/update-notifier";
 import { requireRider } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
@@ -15,7 +16,8 @@ export default async function RiderUpdates({ params }: { params: Promise<{ local
   return (
     <>
       <h1>{ar ? "التحديثات" : "Updates"}</h1>
-      <p className="muted">{ar ? "تظهر هنا داخل التطبيق. لا تُرسل رسالة نصية." : "These stay inside the app. No text message is sent."}</p>
+      <p className="muted">{ar ? "تظهر هنا داخل التطبيق. لا تُرسل رسالة نصية. تطبيق أندرويد ينبّه هذا الهاتف ما دام سوى مفتوحًا." : "These stay inside the app. No text message is sent. The Android app alerts this phone while Sawa is open."}</p>
+      <AskPhoneAlert locale={locale} />
       {rows.length === 0 ? <p className="card">{ar ? "لا يوجد تحديث بعد." : "No update yet."}</p> : null}
       <div className="stack">
         {rows.map((row) => (

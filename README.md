@@ -97,7 +97,7 @@ It is not a marketplace where a private-car owner charges strangers for a lift. 
 - In-app call. Phone numbers stay hidden. Both people need the ride open and a microphone. There is no TURN server, so some networks fail after answer. This is not a carrier masked-number service.
 - Share link for the trip. SOS alerts Sawa operations. It is not a public emergency service. Police 999, Dubai Police 901, ambulance 998.
 - Rating after the boarded seat is marked dropped off.
-- Updates inside the app when a price is sent, the ride is confirmed, a message arrives, the van reaches the stop, the passenger boards, or the passenger is dropped off. No text message is sent.
+- Updates inside the app when a price is sent, the ride is confirmed, a message arrives, the van reaches the stop, the passenger boards, or the passenger is dropped off. No text message is sent. The Android app shows a phone alert for a new update while Sawa is open. A browser can do the same after permission.
 - A finished ride shows a receipt: the fare, any wallet portion, the driver, and the plate.
 - Help, tickets, the two-hour cancellation rule, large type, language, and account deletion in settings.
 - Optional WhatsApp opt-in. Staff cannot message a passenger who has not asked.
