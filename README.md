@@ -83,7 +83,7 @@ It is not a marketplace where a private-car owner charges strangers for a lift. 
 
 - Separate sign-up and sign-in. The phone number is the account. The demo code is `123456`. No SMS provider is connected.
 - Profile photo and identity document before a seat can be requested.
-- Book a corridor, a morning or evening window, a pickup stop, and a drop-off. Home and work are two stops on the same road. Morning starts at home. Evening starts at work.
+- Book a corridor, a morning or evening window, a pickup stop, and a drop-off. Home and work are two stops on the same road. Morning starts at home. Evening starts at work. A past ride can be requested again with the same road, stops, and window. The date is today, and the price is a new quote.
 - One day, or the same road every working day. A monthly ride can be paused.
 - Share the van, or take it alone. A women-only preference is stored with the request.
 - The quote is the seat price plus a share of the road toll. Sharjah–Dubai shared is 100 AED before toll.

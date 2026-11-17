@@ -23,6 +23,17 @@ type RouteOption = {
 
 type SavedCommute = { routeId: string; homeId: string; workId: string } | null;
 
+type AgainRide = {
+  routeId: string;
+  pickupId: string;
+  dropId: string;
+  shift: "morning" | "evening";
+  windowLabel: string;
+  product: "single" | "monthly";
+  rideMode: "shared" | "private";
+  womenOnly: boolean;
+};
+
 function commuteEnds(route: RouteOption | undefined, saved: SavedCommute, shift: "morning" | "evening") {
   if (!route) return { pickup: "", drop: "" };
   if (saved && route.id === saved.routeId) {
@@ -35,25 +46,43 @@ function commuteEnds(route: RouteOption | undefined, saved: SavedCommute, shift:
   return { pickup: route.stops[0]?.id ?? "", drop: route.stops.at(-1)?.id ?? "" };
 }
 
-export function BookForm({ locale, routes, date, initialProduct = "single", saved = null }: { locale: string; routes: RouteOption[]; date: string; initialProduct?: string; saved?: SavedCommute }) {
+export function BookForm({ locale, routes, date, initialProduct = "single", saved = null, again = null }: { locale: string; routes: RouteOption[]; date: string; initialProduct?: string; saved?: SavedCommute; again?: AgainRide | null }) {
   const m = t(locale);
   const ar = locale === "ar";
+  const againRoute = again && routes.some((item) => item.id === again.routeId) ? again : null;
   const savedRoute = saved && routes.some((item) => item.id === saved.routeId) ? saved.routeId : "";
-  const [routeId, setRouteId] = useState(savedRoute || routes[0]?.id || "");
-  const [product, setProduct] = useState(initialProduct === "monthly" ? "monthly" : "single");
-  const [rideMode, setRideMode] = useState<"shared" | "private">("shared");
-  const [shift, setShift] = useState<"morning" | "evening">("morning");
+  const openingShift = againRoute?.shift ?? "morning";
+  const openingWindow = againRoute && windows[openingShift].some((slot) => slot.en === againRoute.windowLabel) ? againRoute.windowLabel : windows[openingShift][1].en;
+  const [routeId, setRouteId] = useState(againRoute?.routeId || savedRoute || routes[0]?.id || "");
+  const [product, setProduct] = useState(againRoute?.product ?? (initialProduct === "monthly" ? "monthly" : "single"));
+  const [rideMode, setRideMode] = useState<"shared" | "private">(againRoute?.rideMode ?? "shared");
+  const [shift, setShift] = useState<"morning" | "evening">(openingShift);
   const [serviceDate, setServiceDate] = useState(date);
-  const [windowLabel, setWindowLabel] = useState<string>(windows.morning[1].en);
+  const [windowLabel, setWindowLabel] = useState<string>(openingWindow);
+  const [womenOnly, setWomenOnly] = useState(Boolean(againRoute?.womenOnly));
   const route = useMemo(() => routes.find((item) => item.id === routeId) ?? routes[0], [routeId, routes]);
-  const initialEnds = commuteEnds(route, saved, "morning");
+  const repeated = againRoute && route?.id === againRoute.routeId && againRoute.shift === shift
+    ? { pickup: againRoute.pickupId, drop: againRoute.dropId }
+    : null;
+  const initialEnds = repeated && route?.stops.some((stop) => stop.id === repeated.pickup) && route.stops.some((stop) => stop.id === repeated.drop)
+    ? repeated
+    : commuteEnds(route, saved, openingShift);
   const [pickupId, setPickupId] = useState(initialEnds.pickup);
   const [dropId, setDropId] = useState(initialEnds.drop);
   useEffect(() => {
+    if (againRoute && route?.id === againRoute.routeId && shift === againRoute.shift) {
+      const pickup = route.stops.find((stop) => stop.id === againRoute.pickupId);
+      const drop = route.stops.find((stop) => stop.id === againRoute.dropId);
+      if (pickup && drop && pickup.id !== drop.id) {
+        setPickupId(pickup.id);
+        setDropId(drop.id);
+        return;
+      }
+    }
     const next = commuteEnds(route, saved, shift);
     setPickupId(next.pickup);
     setDropId(next.drop);
-  }, [route?.id, shift, saved?.routeId, saved?.homeId, saved?.workId]);
+  }, [route, shift, saved, againRoute]);
   if (!route) return null;
   const shared = product === "monthly" ? route.monthlyPriceAed : route.seatPriceAed;
   const alone = product === "monthly" ? route.monthlyPrivateAed : route.privatePriceAed;
@@ -110,7 +139,7 @@ export function BookForm({ locale, routes, date, initialProduct = "single", save
           {route.stops.map((stop) => <option key={stop.id} value={stop.id}>{ar ? stop.nameAr : stop.nameEn}</option>)}
         </select>
       </label>
-      {saved && route.id === saved.routeId ? <p className="muted">{ar ? "الصباح من المنزل إلى العمل. المساء من العمل إلى المنزل." : "Morning goes from home to work. Evening goes from work to home."}</p> : <p className="muted"><Link href={`/${locale}/ride/settings`}>{ar ? "احفظ المنزل والعمل" : "Save home and work"}</Link></p>}
+      {againRoute && route.id === againRoute.routeId && pickup?.id === againRoute.pickupId && drop?.id === againRoute.dropId ? <p className="muted">{ar ? "نفس الموقفين كرحلة سابقة. اليوم طلب جديد، والسعر يُحسب من جديد." : "Same stops as a previous ride. Today is a new request, and the price is quoted again."}</p> : saved && route.id === saved.routeId ? <p className="muted">{ar ? "الصباح من المنزل إلى العمل. المساء من العمل إلى المنزل." : "Morning goes from home to work. Evening goes from work to home."}</p> : <p className="muted"><Link href={`/${locale}/ride/settings`}>{ar ? "احفظ المنزل والعمل" : "Save home and work"}</Link></p>}
       <input type="hidden" name="rideMode" value={rideMode} />
       <div className="modes" role="group" aria-label={ar ? "نوع الرحلة" : "Ride type"}>
         <button type="button" className={rideMode === "shared" ? "on" : ""} onClick={() => setRideMode("shared")}>
@@ -123,14 +152,14 @@ export function BookForm({ locale, routes, date, initialProduct = "single", save
         </button>
       </div>
       <label>{ar ? "كم مرة؟" : "How often?"}
-        <select name="product" value={product} onChange={(event) => setProduct(event.target.value)}>
+        <select name="product" value={product} onChange={(event) => setProduct(event.target.value === "monthly" ? "monthly" : "single")}>
           <option value="single">{m.single}</option>
           <option value="monthly">{m.monthly}</option>
         </select>
       </label>
       {product === "monthly" ? <p className="muted">{ar ? "الأحد إلى الخميس. بعد الاتفاق تظهر في تبويب الشهر ويمكنك إيقافها." : "Sunday to Thursday. After you agree, it shows under Month and you can pause it."}</p> : null}
       {rideMode === "shared" ? <p className="muted">{ar ? "مشاركة المركبة تنضم إلى فان مفتوح على هذا الطريق. حتى 4 ركاب. السعر ينقص كلما امتلأت المقاعد. إذا امتلأت المركبة تنتظر المقعد التالي، ويمكن تقسيم الأجرة بعد التأكيد." : "Sharing joins an open van on this road, up to 4 people. The price falls as seats fill. A full van puts you on the waitlist, and you can split the fare after it is confirmed."}</p> : null}
-      <label className="row"><input type="checkbox" name="womenOnly" disabled={!route.womenOnlyAvailable} /> {m.womenOnly}</label>
+      <label className="row"><input type="checkbox" name="womenOnly" checked={womenOnly && route.womenOnlyAvailable} onChange={(event) => setWomenOnly(event.target.checked)} disabled={!route.womenOnlyAvailable} /> {m.womenOnly}</label>
       {!route.womenOnlyAvailable ? <p className="muted">{ar ? "لا توجد مركبة نساء فقط على هذا الممر." : "No women-only vehicle is on this corridor."}</p> : null}
       <p className="price">{price} AED</p>
       <p className="muted">{ar ? `الأجرة ${fare} درهم` : `Fare AED ${fare}`}</p>

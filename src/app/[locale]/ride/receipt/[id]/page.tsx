@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { againPath } from "@/lib/again";
 import { requireRider } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
@@ -48,6 +49,7 @@ export default async function ReceiptPage({
           {entries.map((entry) => <p key={entry.id}>{reason(entry.reason)} · {entry.amountAed > 0 ? "+" : ""}{entry.amountAed} AED</p>)}
         </div>
       ) : null}
+      <p><Link className="btn" href={againPath(locale, booking)}>{ar ? "اطلب هذه الرحلة مرة أخرى" : "Ask for this ride again"}</Link></p>
       <p><Link href={`/${locale}/ride/history`}>{ar ? "رحلاتك" : "Your rides"}</Link> · <Link href={`/${locale}/ride/trip/${booking.id}`}>{ar ? "الرحلة" : "The ride"}</Link></p>
     </>
   );

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Notice } from "@/components/notice";
 import { RateForm } from "@/components/rate-form";
+import { againPath } from "@/lib/again";
 import { requireRider } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
@@ -38,6 +39,7 @@ export default async function HistoryPage({
               <p>{booking.serviceDate} · {booking.shift === "evening" ? (ar ? "مساء" : "Evening") : (ar ? "صباح" : "Morning")} · {words(booking.status)} · {booking.priceAed} AED</p>
               {booking.run?.driver ? <p>{booking.run.driver.displayName}{booking.run.vehicle ? ` · ${booking.run.vehicle.plate}` : ""}</p> : null}
               {booking.status === "completed" ? <p><Link href={`/${locale}/ride/receipt/${booking.id}`}>{ar ? `الإيصال · ${booking.priceAed} درهم` : `Receipt · ${booking.priceAed} AED`}</Link></p> : null}
+              <p><Link href={againPath(locale, booking)}>{ar ? "اطلب هذه الرحلة مرة أخرى" : "Ask for this ride again"}</Link></p>
               {booking.status === "completed" && booking.rating == null ? <RateForm locale={locale} bookingId={booking.id} /> : null}
               {booking.rating ? <p>{ar ? `تقييمك ${booking.rating} من 5` : `You gave ${booking.rating} out of 5`}</p> : null}
             </article>
