@@ -133,7 +133,7 @@ export default async function TripPage({
       {booking.status === "completed" && booking.rating == null ? <RateForm locale={locale} bookingId={booking.id} next={`/${locale}/ride/trip/${booking.id}`} /> : null}
       {booking.rating ? <p>{ar ? `تقييمك ${booking.rating} من 5.` : `You gave ${booking.rating} out of 5.`}</p> : null}
       {booking.run ? <p><Link className="btn" href={`/${locale}/ride/chat/${booking.id}`}>{ar ? "محادثة السائق" : "Chat with the driver"}</Link></p> : null}
-      {share ? <p><span>{m.share}</span><br /><a href={share}>{share}</a></p> : null}
+      {share ? <p className="share-link"><span>{m.share}</span><br /><a href={share}>{share}</a></p> : null}
       <form action={sendSos}>
         <input type="hidden" name="locale" value={locale} />
         <input type="hidden" name="bookingId" value={booking.id} />

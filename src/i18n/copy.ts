@@ -122,6 +122,7 @@ const en = {
     wallet: "The wallet does not cover this fare.",
     split: "That amount cannot be split.",
     optin: "No passenger has asked for WhatsApp yet.",
+    waiting: "Some passengers are still waiting at the stop, so this van stays on the shift.",
   },
   ok: {
     paid: "Payment recorded.",
@@ -134,6 +135,7 @@ const en = {
     boarded: "Boarding recorded.",
     wallet: "The wallet is updated.",
     split: "The fare split is updated.",
+    dropped: "This passenger is dropped off.",
   },
 };
 
@@ -261,6 +263,7 @@ const ar: typeof en = {
     wallet: "رصيد المحفظة لا يغطي هذه الأجرة.",
     split: "لا يمكن تقسيم هذا المبلغ.",
     optin: "لا يوجد راكب طلب واتساب بعد.",
+    waiting: "بعض الركاب ما زالوا عند الموقف، لذلك تبقى المركبة على الوردية.",
   },
   ok: {
     paid: "سُجّل الدفع.",
@@ -273,6 +276,7 @@ const ar: typeof en = {
     boarded: "سُجّل الصعود.",
     wallet: "تم تحديث المحفظة.",
     split: "تم تحديث تقسيم الأجرة.",
+    dropped: "نزل هذا الراكب.",
   },
 };
 

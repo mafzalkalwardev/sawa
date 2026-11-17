@@ -11,7 +11,8 @@ export default async function DriverHistory({ params }: { params: Promise<{ loca
     take: 20,
   });
   const ar = locale === "ar";
-  const earned = runs.filter((run) => run.status === "completed").reduce((sum, run) => sum + run.bookings.filter((booking) => booking.status !== "cancelled").reduce((inner, booking) => inner + booking.priceAed, 0), 0);
+  const finishedFare = (run: { bookings: { status: string; priceAed: number }[] }) => run.bookings.filter((booking) => booking.status === "completed").reduce((inner, booking) => inner + booking.priceAed, 0);
+  const earned = runs.filter((run) => run.status === "completed").reduce((sum, run) => sum + finishedFare(run), 0);
   const words = (status: string) => status === "completed" ? (ar ? "انتهت" : "Finished") : status === "live" ? (ar ? "على الطريق" : "On the road") : status === "cancelled" ? (ar ? "أُلغيت" : "Cancelled") : (ar ? "قادمة" : "Coming up");
   return (
     <>
@@ -20,7 +21,7 @@ export default async function DriverHistory({ params }: { params: Promise<{ loca
       <p className="muted">{ar ? "هذا ما اتفق عليه الركاب في الرحلات المنتهية." : "This is what passengers agreed on finished rides."}</p>
       {runs.length === 0 ? <p className="card">{ar ? "لا توجد رحلة بعد." : "No ride yet."}</p> : null}
       {runs.map((run) => {
-        const people = run.bookings.filter((booking) => booking.status !== "cancelled");
+        const people = run.bookings.filter((booking) => booking.status === "completed");
         const fare = people.reduce((sum, booking) => sum + booking.priceAed, 0);
         return (
           <article key={run.id} className="card">

@@ -17,7 +17,21 @@ export async function sendChat(formData: FormData) {
   if (!session || !thread) redirect(`/${locale}/app`);
   const mine = session.kind === "rider" ? session.id === thread.customerId : session.kind === "driver" && session.id === thread.driverId;
   if (!mine) redirect(`/${locale}/app`);
-  await say(thread.id, session.kind === "driver" ? "driver" : "rider", body);
+  const kind = session.kind === "driver" ? "driver" : "rider";
+  await say(thread.id, kind, body);
+  if (requestId) {
+    const request = await prisma.rideRequest.findUnique({ where: { id: requestId } });
+    if (request?.bookingId) {
+      const other = await prisma.chatThread.findUnique({ where: { bookingId: request.bookingId } });
+      if (other && other.id !== thread.id) await say(other.id, kind, body);
+    }
+  } else if (bookingId) {
+    const request = await prisma.rideRequest.findFirst({ where: { bookingId } });
+    if (request) {
+      const other = await prisma.chatThread.findUnique({ where: { requestId: request.id } });
+      if (other && other.id !== thread.id) await say(other.id, kind, body);
+    }
+  }
   const base = session.kind === "driver" ? "drive" : "ride";
   if (requestId) redirect(`/${locale}/${base}/requests/${requestId}`);
   redirect(`/${locale}/${base}/chat/${bookingId}`);

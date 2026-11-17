@@ -69,14 +69,28 @@ export async function endShift(formData: FormData) {
   redirect(`/${locale}/drive?ok=saved`);
 }
 
+export async function dropPassenger(formData: FormData) {
+  const locale = String(formData.get("locale") || "en");
+  const driver = await requireDriver(locale);
+  const bookingId = String(formData.get("bookingId") || "");
+  const booking = await prisma.booking.findFirst({
+    where: { id: bookingId, status: "boarded", run: { driverId: driver.id, status: { in: ["scheduled", "live"] } } },
+  });
+  if (!booking) redirect(`/${locale}/drive/shift?error=missing`);
+  await prisma.booking.update({ where: { id: booking.id }, data: { status: "completed" } });
+  redirect(`/${locale}/drive/shift?ok=dropped`);
+}
+
 export async function completeRun(formData: FormData) {
   const locale = String(formData.get("locale") || "en");
   const driver = await requireDriver(locale);
   const runId = String(formData.get("runId") || "");
   const run = await prisma.run.findFirst({ where: { id: runId, driverId: driver.id } });
   if (!run) redirect(`/${locale}/drive`);
-  await prisma.run.update({ where: { id: run.id }, data: { status: "completed", endedAt: new Date() } });
+  const stillWaiting = await prisma.booking.count({ where: { runId: run.id, status: "confirmed" } });
   await prisma.booking.updateMany({ where: { runId: run.id, status: "boarded" }, data: { status: "completed" } });
+  if (stillWaiting > 0) redirect(`/${locale}/drive/shift?error=waiting`);
+  await prisma.run.update({ where: { id: run.id }, data: { status: "completed", endedAt: new Date() } });
   await prisma.driver.update({
     where: { id: driver.id },
     data: { onShift: false, completedTrips: { increment: 1 } },

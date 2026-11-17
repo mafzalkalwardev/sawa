@@ -9,6 +9,7 @@ import android.os.Bundle;
 import android.webkit.GeolocationPermissions;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
+import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.PermissionRequest;
 import android.webkit.WebSettings;
@@ -72,6 +73,18 @@ public class MainActivity extends AppCompatActivity {
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 return false;
             }
+
+            @Override
+            public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+                if (request == null || !request.isForMainFrame()) return;
+                String html = "<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1'></head>"
+                    + "<body style='margin:0;background:#0E2A24;color:#F4F1EA;font-family:sans-serif;padding:28px'>"
+                    + "<h1 style='font-weight:500'>Sawa</h1>"
+                    + "<p>This page did not load. The app is still open.</p>"
+                    + "<p><a href='" + START_URL + "' style='color:#C4A574'>Try again</a></p>"
+                    + "</body></html>";
+                view.loadDataWithBaseURL("https://sawa.induswebagency.com/", html, "text/html", "utf-8", null);
+            }
         });
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
@@ -108,10 +121,12 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
-        if (webView != null && webView.canGoBack()) {
+        if (webView == null) return;
+        if (webView.canGoBack()) {
             webView.goBack();
             return;
         }
-        super.onBackPressed();
+        String url = webView.getUrl() == null ? "" : webView.getUrl();
+        if (!url.contains("/app")) webView.loadUrl(START_URL);
     }
 }

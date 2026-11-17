@@ -109,9 +109,15 @@ export function CallBox({ bookingId, locale }: { bookingId: string; locale: stri
       setRole(data.role || "");
       const next = data.call as CallState | null;
       setCall(next);
-      if (!next) return;
-      if (next.status === "declined" || next.status === "ended") {
-        setPhase("");
+      if (!next || next.status === "declined" || next.status === "ended") {
+        if (pc.current || callId.current) {
+          pc.current?.getSenders().forEach((sender) => sender.track?.stop());
+          pc.current?.close();
+          pc.current = null;
+          callId.current = "";
+          applied.current = { offer: false, answer: false };
+          setPhase("");
+        }
         return;
       }
       const node = pc.current;

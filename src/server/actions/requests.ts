@@ -5,7 +5,7 @@ import { getSession, requireDriver, requireRider } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { nid, pinCode, shareToken } from "@/lib/ids";
 import { quoteToll } from "@/lib/tolls";
-import { openChat } from "@/server/chat";
+import { copyRequestChat, openChat } from "@/server/chat";
 import { joinSharedPool, pooledFare } from "@/server/pool";
 import { createRun, seatsFree } from "@/server/runs";
 import { creditReferral } from "@/server/wallet";
@@ -260,6 +260,7 @@ export async function createOrder(formData: FormData) {
       }
     }
     await prisma.rideRequest.update({ where: { id: item.id }, data: { status: "ordered", bookingId: booking.id } });
+    await copyRequestChat(item.id, booking.id);
     await creditReferral(item.customerId);
     return booking;
   };

@@ -5,7 +5,7 @@ import { t } from "@/i18n/copy";
 import { requireDriver } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { dubaiToday } from "@/lib/time";
-import { arriveStop, boardWithPin, completeRun, endShift, markNoShow, reportDelay, reportIncident } from "@/server/actions/driver";
+import { arriveStop, boardWithPin, completeRun, dropPassenger, endShift, markNoShow, reportDelay, reportIncident } from "@/server/actions/driver";
 import { awayFromRoadKm, drive } from "@/server/routing";
 
 export default async function ShiftPage({
@@ -68,6 +68,13 @@ export default async function ShiftPage({
                     <input type="hidden" name="locale" value={locale} />
                     <input type="hidden" name="bookingId" value={booking.id} />
                     <button className="btn ghost" type="submit">{ar ? "لم يحضر" : "They didn't show"}</button>
+                  </form>
+                ) : null}
+                {booking.status === "boarded" ? (
+                  <form action={dropPassenger}>
+                    <input type="hidden" name="locale" value={locale} />
+                    <input type="hidden" name="bookingId" value={booking.id} />
+                    <button className="btn" type="submit">{ar ? "نزل هذا الراكب" : "This passenger is dropped off"}</button>
                   </form>
                 ) : null}
               </article>

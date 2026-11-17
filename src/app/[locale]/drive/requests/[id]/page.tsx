@@ -24,7 +24,7 @@ export default async function DriverRequest({
       <p className="pill">{request.product === "monthly" ? (ar ? "شهري" : "Monthly") : (ar ? "يوم واحد" : "One day")}</p>
       <h1>{person?.fullName}</h1>
       {person?.photoUrl ? <img className="avatar" src={`/api/files/riders/${person.id}/${person.photoUrl}`} alt="" /> : null}
-      {person?.idDocumentUrl ? <p><img src={`/api/files/riders/${person.id}/${person.idDocumentUrl}`} alt="" style={{ width: "100%", borderRadius: 16 }} /></p> : null}
+      {person?.idDocumentUrl ? <p className="muted">{ar ? "وثيقة الهوية لدى العمليات، وليست على هذه الشاشة." : "The identity document stays with operations. It is not shown on this screen."}</p> : null}
       <p>{route ? (ar ? route.nameAr : route.nameEn) : ""} · {request.windowLabel}</p>
       {request.offerAed ? <p className="price">{request.offerAed} AED</p> : null}
       <p className="muted">{request.driverAgreed ? (ar ? "أنت موافق" : "You agreed") : (ar ? "بانتظار موافقتك" : "Waiting for you")}</p>
