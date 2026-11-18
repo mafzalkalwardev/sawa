@@ -12,6 +12,12 @@ import { tellRider } from "@/server/updates";
 import { dubaiToday } from "@/lib/time";
 import { driverDocsValid } from "@/server/records";
 
+function vanPath(locale: string, runId: string, extra?: Record<string, string>) {
+  const params = new URLSearchParams({ run: runId });
+  for (const [key, value] of Object.entries(extra ?? {})) params.set(key, value);
+  return `/${locale}/drive/shift?${params.toString()}`;
+}
+
 export async function uploadDocument(formData: FormData) {
   const locale = String(formData.get("locale") || "en");
   const driver = await requireDriver(locale);
@@ -77,10 +83,10 @@ export async function dropPassenger(formData: FormData) {
   const booking = await prisma.booking.findFirst({
     where: { id: bookingId, status: "boarded", run: { driverId: driver.id, status: { in: ["scheduled", "live"] } } },
   });
-  if (!booking) redirect(`/${locale}/drive/shift?error=missing`);
+  if (!booking?.runId) redirect(`/${locale}/drive/shift?error=missing`);
   await prisma.booking.update({ where: { id: booking.id }, data: { status: "completed" } });
   await tellRider(booking.customerId, "dropped", "You're dropped off. You can rate the ride.", "نزلت. يمكنك تقييم الرحلة.", booking.id);
-  redirect(`/${locale}/drive/shift?ok=dropped`);
+  redirect(vanPath(locale, booking.runId, { ok: "dropped" }));
 }
 
 export async function completeRun(formData: FormData) {
@@ -95,7 +101,7 @@ export async function completeRun(formData: FormData) {
   for (const booking of boarded) {
     await tellRider(booking.customerId, "dropped", "You're dropped off. You can rate the ride.", "نزلت. يمكنك تقييم الرحلة.", booking.id);
   }
-  if (stillWaiting > 0) redirect(`/${locale}/drive/shift?error=waiting`);
+  if (stillWaiting > 0) redirect(vanPath(locale, run.id, { error: "waiting" }));
   await prisma.run.update({ where: { id: run.id }, data: { status: "completed", endedAt: new Date() } });
   await prisma.driver.update({
     where: { id: driver.id },
@@ -108,12 +114,16 @@ export async function boardWithPin(formData: FormData) {
   const locale = String(formData.get("locale") || "en");
   const driver = await requireDriver(locale);
   const pin = String(formData.get("pin") || "").trim();
-  const run = await prisma.run.findFirst({
-    where: { driverId: driver.id, serviceDate: dubaiToday(), status: { in: ["scheduled", "live"] } },
-  });
+  const requested = String(formData.get("runId") || "");
+  const run = requested
+    ? await prisma.run.findFirst({ where: { id: requested, driverId: driver.id, status: { in: ["scheduled", "live"] } } })
+    : await prisma.run.findFirst({
+        where: { driverId: driver.id, serviceDate: dubaiToday(), status: { in: ["scheduled", "live"] } },
+        orderBy: { shift: "asc" },
+      });
   if (!run) redirect(`/${locale}/drive/shift?error=missing`);
   const booking = await prisma.booking.findFirst({ where: { runId: run.id, pin, status: "confirmed" } });
-  if (!booking) redirect(`/${locale}/drive/shift?error=pin`);
+  if (!booking) redirect(vanPath(locale, run.id, { error: "pin" }));
   await prisma.boarding.create({
     data: {
       id: nid("brd"),
@@ -131,7 +141,7 @@ export async function boardWithPin(formData: FormData) {
     await prisma.run.update({ where: { id: run.id }, data: { status: "live", startedAt: new Date() } });
     await prisma.driver.update({ where: { id: driver.id }, data: { onShift: true, shiftStartedAt: driver.shiftStartedAt ?? new Date() } });
   }
-  redirect(`/${locale}/drive/shift?ok=boarded`);
+  redirect(vanPath(locale, run.id, { ok: "boarded" }));
 }
 
 export async function markNoShow(formData: FormData) {
@@ -140,6 +150,7 @@ export async function markNoShow(formData: FormData) {
   const bookingId = String(formData.get("bookingId") || "");
   const booking = await prisma.booking.findFirst({ where: { id: bookingId }, include: { run: true } });
   if (!booking?.run || booking.run.driverId !== driver.id) redirect(`/${locale}/drive/shift?error=missing`);
+  const runId = booking.run.id;
   await prisma.boarding.create({
     data: {
       id: nid("brd"),
@@ -153,7 +164,7 @@ export async function markNoShow(formData: FormData) {
   });
   await prisma.booking.update({ where: { id: booking.id }, data: { status: "no_show" } });
   await tellRider(booking.customerId, "noshow", "The driver marked that you were not at the stop.", "سجّل السائق أنك لم تكن عند الموقف.", booking.id);
-  redirect(`/${locale}/drive/shift?ok=saved`);
+  redirect(vanPath(locale, runId, { ok: "saved" }));
 }
 
 export async function arriveStop(formData: FormData) {
@@ -162,6 +173,7 @@ export async function arriveStop(formData: FormData) {
   const eventId = String(formData.get("eventId") || "");
   const event = await prisma.stopEvent.findUnique({ where: { id: eventId }, include: { run: true } });
   if (!event || event.run.driverId !== driver.id) redirect(`/${locale}/drive/shift?error=missing`);
+  const runId = event.run.id;
   await prisma.stopEvent.update({ where: { id: event.id }, data: { status: "arrived", arrivedAt: new Date() } });
   const stop = await prisma.stop.findUnique({ where: { id: event.stopId } });
   const waitingHere = await prisma.booking.findMany({
@@ -180,7 +192,7 @@ export async function arriveStop(formData: FormData) {
       data: { id: nid("png"), driverId: driver.id, lat: stop.lat, lng: stop.lng, source: "arrival" },
     });
   }
-  redirect(`/${locale}/drive/shift?ok=saved`);
+  redirect(vanPath(locale, runId, { ok: "saved" }));
 }
 
 export async function reportDelay(formData: FormData) {
@@ -189,13 +201,13 @@ export async function reportDelay(formData: FormData) {
   const runId = String(formData.get("runId") || "");
   const note = String(formData.get("note") || "").trim();
   const run = await prisma.run.findFirst({ where: { id: runId, driverId: driver.id } });
-  if (!run || !note) redirect(`/${locale}/drive/shift?error=missing`);
+  if (!run || !note) redirect(run ? vanPath(locale, run.id, { error: "missing" }) : `/${locale}/drive/shift?error=missing`);
   await prisma.run.update({ where: { id: run.id }, data: { delayNote: note } });
   const riders = await prisma.booking.findMany({ where: { runId: run.id, status: { in: ["confirmed", "boarded"] } } });
   for (const booking of riders) {
     await tellRider(booking.customerId, "delay", `The van is running late. ${note}`, `المركبة متأخرة. ${note}`, booking.id);
   }
-  redirect(`/${locale}/drive/shift?ok=saved`);
+  redirect(vanPath(locale, run.id, { ok: "saved" }));
 }
 
 export async function reportIncident(formData: FormData) {
@@ -203,7 +215,7 @@ export async function reportIncident(formData: FormData) {
   const driver = await requireDriver(locale);
   const body = String(formData.get("body") || "").trim();
   const runId = String(formData.get("runId") || "") || null;
-  if (!body) redirect(`/${locale}/drive/shift?error=missing`);
+  if (!body) redirect(runId ? vanPath(locale, runId, { error: "missing" }) : `/${locale}/drive/shift?error=missing`);
   await prisma.ticket.create({
     data: {
       id: nid("tkt"),
@@ -219,7 +231,7 @@ export async function reportIncident(formData: FormData) {
     },
   });
   await prisma.driver.update({ where: { id: driver.id }, data: { incidents: { increment: 1 } } });
-  redirect(`/${locale}/drive/shift?ok=sent`);
+  redirect(runId ? vanPath(locale, runId, { ok: "sent" }) : `/${locale}/drive/shift?ok=sent`);
 }
 
 export async function simulateLocation(formData: FormData) {
@@ -233,7 +245,7 @@ export async function simulateLocation(formData: FormData) {
   if (!run) redirect(`/${locale}/drive/shift?error=missing`);
   const nextEvent = run.stopEvents.find((event) => event.status !== "arrived") ?? run.stopEvents[run.stopEvents.length - 1];
   const stop = nextEvent ? await prisma.stop.findUnique({ where: { id: nextEvent.stopId } }) : null;
-  if (!stop) redirect(`/${locale}/drive/shift?error=missing`);
+  if (!stop) redirect(vanPath(locale, run.id, { error: "missing" }));
   const stops = await prisma.stop.findMany({ where: { routeId: run.routeId }, orderBy: { sequence: "asc" } });
   const road = await drive(stops);
   const reported = { lat: driver.liveLat ?? driver.baseLat ?? stop.lat, lng: driver.liveLng ?? driver.baseLng ?? stop.lng };
@@ -242,5 +254,5 @@ export async function simulateLocation(formData: FormData) {
   await prisma.driver.update({ where: { id: driver.id }, data: { liveLat: next.lat, liveLng: next.lng, liveAt: new Date() } });
   await prisma.locationPing.create({ data: { id: nid("png"), driverId: driver.id, lat: next.lat, lng: next.lng, source: "simulator" } });
   const km = haversineKm(next, stop);
-  redirect(`/${locale}/drive/shift?ok=saved&moved=${Math.round(km * 10) / 10}`);
+  redirect(vanPath(locale, run.id, { ok: "saved", moved: String(Math.round(km * 10) / 10) }));
 }

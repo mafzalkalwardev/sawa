@@ -12,7 +12,6 @@ export async function ensureServiceDay(date = dubaiToday()) {
   let run = await prisma.run.findFirst({
     where: {
       driverId: driver.id,
-      routeId: route.id,
       serviceDate: date,
       shift: "morning",
       status: { not: "cancelled" },
@@ -44,14 +43,15 @@ export async function ensureServiceDay(date = dubaiToday()) {
     });
   }
 
-  const booking = await prisma.booking.findFirst({
-    where: { customerId: youssef.id, serviceDate: date, shift: "morning", routeId: route.id, status: { not: "cancelled" } },
-  });
-  if (!booking) {
-    const pickup = await prisma.stop.findFirst({ where: { routeId: route.id, slug: "nahda-shj" } });
-    const drop = await prisma.stop.findFirst({ where: { routeId: route.id, slug: "union" } });
-    if (pickup && drop) {
-      await prisma.booking.create({
+  const pickup = await prisma.stop.findFirst({ where: { routeId: route.id, slug: "nahda-shj" } });
+  const drop = await prisma.stop.findFirst({ where: { routeId: route.id, slug: "union" } });
+  if (pickup && drop && run.routeId === route.id) {
+    await prisma.$transaction(async (tx) => {
+      const booking = await tx.booking.findFirst({
+        where: { customerId: youssef.id, serviceDate: date, shift: "morning", routeId: route.id, status: { not: "cancelled" } },
+      });
+      if (booking) return;
+      await tx.booking.create({
         data: {
           id: nid("bkg"),
           customerId: youssef.id,
@@ -70,7 +70,7 @@ export async function ensureServiceDay(date = dubaiToday()) {
           womenOnly: false,
         },
       });
-    }
+    });
   }
 
   const yesterday = addDays(date, -1);
@@ -80,9 +80,12 @@ export async function ensureServiceDay(date = dubaiToday()) {
       where: { customerId: layla.id, serviceDate: yesterday, status: "completed" },
     });
     if (!past) {
+      const evening = await prisma.run.findFirst({
+        where: { driverId: driver.id, serviceDate: yesterday, shift: "evening", status: { not: "cancelled" } },
+      });
       const pickup = await prisma.stop.findFirst({ where: { routeId: route.id, slug: "rolla" } });
       const drop = await prisma.stop.findFirst({ where: { routeId: route.id, slug: "fahidi" } });
-      if (pickup && drop && driver.defaultVehicleId) {
+      if (!evening && pickup && drop && driver.defaultVehicleId) {
         const pastRun = await createRun({
           routeId: route.id,
           driverId: driver.id,
@@ -91,23 +94,29 @@ export async function ensureServiceDay(date = dubaiToday()) {
           shift: "evening",
           status: "completed",
         });
-        await prisma.booking.create({
-          data: {
-            id: nid("bkg"),
-            customerId: layla.id,
-            runId: pastRun.id,
-            routeId: route.id,
-            serviceDate: yesterday,
-            shift: "evening",
-            windowLabel: "17:40–19:00",
-            pickupStopId: pickup.id,
-            dropStopId: drop.id,
-            product: "single",
-            priceAed: 25,
-            status: "completed",
-            pin: pinCode(),
-            shareToken: shareToken(),
-          },
+        await prisma.$transaction(async (tx) => {
+          const already = await tx.booking.findFirst({
+            where: { customerId: layla.id, serviceDate: yesterday, status: "completed" },
+          });
+          if (already) return;
+          await tx.booking.create({
+            data: {
+              id: nid("bkg"),
+              customerId: layla.id,
+              runId: pastRun.id,
+              routeId: route.id,
+              serviceDate: yesterday,
+              shift: "evening",
+              windowLabel: "17:40–19:00",
+              pickupStopId: pickup.id,
+              dropStopId: drop.id,
+              product: "single",
+              priceAed: 25,
+              status: "completed",
+              pin: pinCode(),
+              shareToken: shareToken(),
+            },
+          });
         });
       }
     }

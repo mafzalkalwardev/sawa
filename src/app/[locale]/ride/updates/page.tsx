@@ -1,6 +1,7 @@
 import { AskPhoneAlert } from "@/components/update-notifier";
 import { requireRider } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { dubaiStamp } from "@/lib/time";
 
 export default async function RiderUpdates({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -23,7 +24,7 @@ export default async function RiderUpdates({ params }: { params: Promise<{ local
         {rows.map((row) => (
           <article key={row.id} className="card">
             <p>{ar ? row.bodyAr : row.bodyEn}</p>
-            <p className="muted">{row.createdAt.toISOString().slice(0, 16).replace("T", " ")}</p>
+            <p className="muted">{dubaiStamp(row.createdAt)}</p>
           </article>
         ))}
       </div>

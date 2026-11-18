@@ -13,13 +13,18 @@ export default async function ShiftPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ ok?: string; error?: string }>;
+  searchParams: Promise<{ ok?: string; error?: string; run?: string }>;
 }) {
   const { locale } = await params;
   const query = await searchParams;
   const driver = await requireDriver(locale);
+  const today = dubaiToday();
+  const requested = typeof query.run === "string" ? query.run : "";
   const run = await prisma.run.findFirst({
-    where: { driverId: driver.id, serviceDate: dubaiToday(), status: { in: ["scheduled", "live"] } },
+    where: requested
+      ? { id: requested, driverId: driver.id, status: { in: ["scheduled", "live"] } }
+      : { driverId: driver.id, serviceDate: today, status: { in: ["scheduled", "live"] } },
+    orderBy: { shift: "asc" },
     include: {
       route: true,
       vehicle: true,
@@ -42,7 +47,7 @@ export default async function ShiftPage({
   return (
     <>
       <LocationPublisher enabled={driver.onShift} />
-      <h1>{ar ? "مركبة اليوم" : "Today's van"}</h1>
+      <h1>{run && run.serviceDate !== today ? `${run.serviceDate} · ${run.shift}` : (ar ? "مركبة اليوم" : "Today's van")}</h1>
       <Notice locale={locale} ok={query.ok} code={query.error} />
       {!run ? <p className="card">{ar ? "لا توجد رحلة مؤكدة لليوم." : "No ride is confirmed for today."}</p> : (
         <>
@@ -61,6 +66,7 @@ export default async function ShiftPage({
           ) : null}
           <form className="stack" action={boardWithPin}>
             <input type="hidden" name="locale" value={locale} />
+            <input type="hidden" name="runId" value={run.id} />
             <label>{ar ? "رقم الراكب" : "Passenger's pickup number"}<input name="pin" inputMode="numeric" placeholder="0000" required /></label>
             <button className="btn" type="submit">{ar ? "هم في المركبة" : "They're on"}</button>
           </form>

@@ -40,10 +40,13 @@ export default async function DriveHome({
     if (!route || !mine.includes(route.slug)) return false;
     return item.status === "queued" || item.driverId === driver.id;
   });
-  const run = await prisma.run.findFirst({
-    where: { driverId: driver.id, serviceDate: dubaiToday(), status: { not: "cancelled" } },
+  const today = dubaiToday();
+  const runs = await prisma.run.findMany({
+    where: { driverId: driver.id, serviceDate: { gte: today }, status: { in: ["scheduled", "live"] } },
     include: { route: true, bookings: true },
+    orderBy: [{ serviceDate: "asc" }, { shift: "asc" }],
   });
+  const run = runs.find((item) => item.serviceDate === today) ?? null;
   const m = t(locale);
   const ar = locale === "ar";
   const unread = await prisma.rideUpdate.count({ where: { driverId: driver.id, readAt: null } });
@@ -55,12 +58,18 @@ export default async function DriveHome({
       <p><span className={`tag ${driver.status === "approved" ? "good" : "warn"}`}>{driver.status === "approved" ? (ar ? "مقبول" : "Approved") : driver.status === "submitted" ? (ar ? "بانتظار المراجعة" : "Waiting for review") : driver.status === "suspended" ? (ar ? "موقوف" : "Suspended") : driver.status}</span> {driver.onShift ? (ar ? "على الوردية" : "On shift") : (ar ? "خارج الوردية" : "Off shift")}</p>
       <Notice locale={locale} code={query.error} ok={query.ok} />
       <p><Link href={`/${locale}/drive/updates`}>{unread ? (ar ? `تحديثات · ${unread} جديدة` : `Updates · ${unread} new`) : (ar ? "التحديثات" : "Updates")}</Link></p>
-      {run ? (
-        <Link className="choice" href={`/${locale}/drive/shift`}>
-          <span><strong>{ar ? "مركبة اليوم" : "Today's van"}</strong><span>{ar ? run.route.nameAr : run.route.nameEn} · {run.bookings.filter((item) => item.status !== "cancelled").length} {ar ? "ركاب" : "passengers"}</span></span>
-          <strong>→</strong>
-        </Link>
-      ) : null}
+      {runs.map((item) => {
+        const seats = item.bookings.filter((booking) => booking.status !== "cancelled").length;
+        const label = item.serviceDate === today
+          ? (ar ? "مركبة اليوم" : "Today's van")
+          : `${item.serviceDate} · ${item.shift === "morning" ? (ar ? "صباح" : "morning") : (ar ? "مساء" : "evening")}`;
+        return (
+          <Link key={item.id} className="choice" href={`/${locale}/drive/shift?run=${item.id}`}>
+            <span><strong>{label}</strong><span>{ar ? item.route.nameAr : item.route.nameEn} · {seats} {ar ? "ركاب" : "passengers"}</span></span>
+            <strong>→</strong>
+          </Link>
+        );
+      })}
       <h2>{ar ? "رحلات بانتظارك" : "Rides waiting for you"}</h2>
       {visible.length === 0 ? <p className="card">{ar ? "لا توجد رحلة على طريقك الآن." : "No ride is waiting on your road right now."}</p> : null}
       {visible.map((item) => {
@@ -107,7 +116,7 @@ export default async function DriveHome({
           <h2>{ar ? run.route.nameAr : run.route.nameEn}</h2>
           <p>{run.shift} · {run.status} · {run.bookings.length} {m.seats}</p>
           <p className="muted">{driver.baseAddress}</p>
-          <Link className="btn" href={`/${locale}/drive/shift`}>{m.today}</Link>
+          <Link className="btn" href={`/${locale}/drive/shift?run=${run.id}`}>{m.today}</Link>
           <Link className="btn ghost" href={`/${locale}/drive/chat`}>{ar ? "المحادثات" : "Chats"}</Link>
         </section>
       ) : (

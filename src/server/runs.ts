@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { nid } from "@/lib/ids";
 
@@ -14,31 +15,45 @@ export async function createRun(opts: {
     where: { routeId: opts.routeId },
     orderBy: { sequence: "asc" },
   });
-  const run = await prisma.run.create({
-    data: {
-      id: nid("run"),
-      assignmentId: opts.assignmentId ?? null,
-      routeId: opts.routeId,
-      driverId: opts.driverId,
-      vehicleId: opts.vehicleId,
-      serviceDate: opts.serviceDate,
-      shift: opts.shift,
-      status: opts.status ?? "scheduled",
-    },
+  const existing = await prisma.run.findFirst({
+    where: { driverId: opts.driverId, serviceDate: opts.serviceDate, shift: opts.shift, status: { not: "cancelled" } },
   });
-  if (stops.length) {
-    await prisma.stopEvent.createMany({
-      data: stops.map((stop, index) => ({
-        id: nid("sev"),
-        runId: run.id,
-        stopId: stop.id,
-        sequence: index,
-        plannedOffsetMin: index * 8,
-        status: "pending",
-      })),
+  if (existing) return existing;
+  try {
+    const run = await prisma.run.create({
+      data: {
+        id: nid("run"),
+        assignmentId: opts.assignmentId ?? null,
+        routeId: opts.routeId,
+        driverId: opts.driverId,
+        vehicleId: opts.vehicleId,
+        serviceDate: opts.serviceDate,
+        shift: opts.shift,
+        status: opts.status ?? "scheduled",
+      },
     });
+    if (stops.length) {
+      await prisma.stopEvent.createMany({
+        data: stops.map((stop, index) => ({
+          id: nid("sev"),
+          runId: run.id,
+          stopId: stop.id,
+          sequence: index,
+          plannedOffsetMin: index * 8,
+          status: "pending",
+        })),
+      });
+    }
+    return run;
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      const again = await prisma.run.findFirst({
+        where: { driverId: opts.driverId, serviceDate: opts.serviceDate, shift: opts.shift, status: { not: "cancelled" } },
+      });
+      if (again) return again;
+    }
+    throw error;
   }
-  return run;
 }
 
 export async function seatsFree(runId: string) {
