@@ -36,7 +36,9 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   const live = run.driver.liveLat != null && run.driver.liveLng != null
     ? { lat: run.driver.liveLat, lng: run.driver.liveLng }
     : null;
-  const liveOnRoad = live != null && onRoad(live, road.path);
+  const ping = await prisma.locationPing.findFirst({ where: { driverId: run.driverId }, orderBy: { createdAt: "desc" } });
+  const awayKm = ping ? awayFromRoadKm(ping, road.path) : null;
+  const liveOnRoad = live != null && awayKm == null && onRoad(live, road.path);
   const base = run.driver.baseLat != null && run.driver.baseLng != null
     ? { lat: run.driver.baseLat, lng: run.driver.baseLng }
     : null;
@@ -44,8 +46,6 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     ? base
     : { lat: run.route.stops[0].lat, lng: run.route.stops[0].lng };
   const marker = liveOnRoad && live ? live : fallback;
-  const ping = await prisma.locationPing.findFirst({ where: { driverId: run.driverId }, orderBy: { createdAt: "desc" } });
-  const awayKm = ping ? awayFromRoadKm(ping, road.path) : null;
   const progress = liveOnRoad && live && next ? minutesAlong(road, live, next) : { minutes: null, passed: false };
   return NextResponse.json({
     lat: marker?.lat ?? null,

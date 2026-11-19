@@ -9,7 +9,7 @@ import { haversineKm } from "@/lib/geo";
 import { drive, onRoad, stepAlongRoad } from "@/server/routing";
 import { nid } from "@/lib/ids";
 import { tellRider } from "@/server/updates";
-import { dubaiToday } from "@/lib/time";
+import { compareRuns, dubaiToday } from "@/lib/time";
 import { driverDocsValid } from "@/server/records";
 
 function vanPath(locale: string, runId: string, extra?: Record<string, string>) {
@@ -59,14 +59,15 @@ export async function startShift(formData: FormData) {
     where: { id: driver.id },
     data: { onShift: true, shiftStartedAt: new Date() },
   });
-  const run = await prisma.run.findFirst({
+  const runs = await prisma.run.findMany({
     where: { driverId: driver.id, serviceDate: dubaiToday(), status: { in: ["scheduled", "live"] } },
-    orderBy: { shift: "asc" },
   });
+  runs.sort(compareRuns);
+  const run = runs[0];
   if (run && run.status === "scheduled") {
     await prisma.run.update({ where: { id: run.id }, data: { status: "live", startedAt: new Date() } });
   }
-  redirect(`/${locale}/drive/shift`);
+  redirect(run ? vanPath(locale, run.id) : `/${locale}/drive/shift`);
 }
 
 export async function endShift(formData: FormData) {
@@ -115,12 +116,13 @@ export async function boardWithPin(formData: FormData) {
   const driver = await requireDriver(locale);
   const pin = String(formData.get("pin") || "").trim();
   const requested = String(formData.get("runId") || "");
-  const run = requested
-    ? await prisma.run.findFirst({ where: { id: requested, driverId: driver.id, status: { in: ["scheduled", "live"] } } })
-    : await prisma.run.findFirst({
-        where: { driverId: driver.id, serviceDate: dubaiToday(), status: { in: ["scheduled", "live"] } },
-        orderBy: { shift: "asc" },
-      });
+  const runs = await prisma.run.findMany({
+    where: requested
+      ? { id: requested, driverId: driver.id, status: { in: ["scheduled", "live"] } }
+      : { driverId: driver.id, serviceDate: dubaiToday(), status: { in: ["scheduled", "live"] } },
+  });
+  runs.sort(compareRuns);
+  const run = runs[0];
   if (!run) redirect(`/${locale}/drive/shift?error=missing`);
   const booking = await prisma.booking.findFirst({ where: { runId: run.id, pin, status: "confirmed" } });
   if (!booking) redirect(vanPath(locale, run.id, { error: "pin" }));

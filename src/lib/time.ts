@@ -45,6 +45,21 @@ export function weekdayName(iso: string, locale: string) {
   }).format(new Date(`${iso}T12:00:00+04:00`));
 }
 
+export function shiftLabel(shift: string, ar: boolean) {
+  return shift === "morning" ? (ar ? "صباح" : "morning") : (ar ? "مساء" : "evening");
+}
+
+export function compareRuns(a: { serviceDate: string; shift: string }, b: { serviceDate: string; shift: string }) {
+  if (a.serviceDate !== b.serviceDate) return a.serviceDate < b.serviceDate ? -1 : 1;
+  if (a.shift === b.shift) return 0;
+  return a.shift === "morning" ? -1 : 1;
+}
+
+export function vanTitle(serviceDate: string, shift: string, today: string, ar: boolean) {
+  const name = shiftLabel(shift, ar);
+  return serviceDate === today ? (ar ? `مركبة اليوم · ${name}` : `Today's van · ${name}`) : `${serviceDate} · ${name}`;
+}
+
 export function shiftStart(date: string, shift: string) {
   const hm = shift === "morning" ? "05:40" : "16:20";
   return new Date(`${date}T${hm}:00+04:00`);

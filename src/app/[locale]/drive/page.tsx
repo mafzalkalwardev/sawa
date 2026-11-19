@@ -3,7 +3,7 @@ import { Notice } from "@/components/notice";
 import { t } from "@/i18n/copy";
 import { requireDriver } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { dubaiToday } from "@/lib/time";
+import { compareRuns, dubaiToday, shiftLabel, vanTitle } from "@/lib/time";
 import { driverDocsValid } from "@/server/records";
 import { ensureServiceDay } from "@/server/service-day";
 import { startShift } from "@/server/actions/driver";
@@ -44,9 +44,9 @@ export default async function DriveHome({
   const runs = await prisma.run.findMany({
     where: { driverId: driver.id, serviceDate: { gte: today }, status: { in: ["scheduled", "live"] } },
     include: { route: true, bookings: true },
-    orderBy: [{ serviceDate: "asc" }, { shift: "asc" }],
   });
-  const run = runs.find((item) => item.serviceDate === today) ?? null;
+  runs.sort(compareRuns);
+  const todayRuns = runs.filter((item) => item.serviceDate === today);
   const m = t(locale);
   const ar = locale === "ar";
   const unread = await prisma.rideUpdate.count({ where: { driverId: driver.id, readAt: null } });
@@ -60,9 +60,7 @@ export default async function DriveHome({
       <p><Link href={`/${locale}/drive/updates`}>{unread ? (ar ? `تحديثات · ${unread} جديدة` : `Updates · ${unread} new`) : (ar ? "التحديثات" : "Updates")}</Link></p>
       {runs.map((item) => {
         const seats = item.bookings.filter((booking) => booking.status !== "cancelled").length;
-        const label = item.serviceDate === today
-          ? (ar ? "مركبة اليوم" : "Today's van")
-          : `${item.serviceDate} · ${item.shift === "morning" ? (ar ? "صباح" : "morning") : (ar ? "مساء" : "evening")}`;
+        const label = vanTitle(item.serviceDate, item.shift, today, ar);
         return (
           <Link key={item.id} className="choice" href={`/${locale}/drive/shift?run=${item.id}`}>
             <span><strong>{label}</strong><span>{ar ? item.route.nameAr : item.route.nameEn} · {seats} {ar ? "ركاب" : "passengers"}</span></span>
@@ -111,17 +109,19 @@ export default async function DriveHome({
           <button className="btn" type="submit">{m.goOnline}</button>
         </form>
       )}
-      {run ? (
-        <section className="card">
-          <h2>{ar ? run.route.nameAr : run.route.nameEn}</h2>
-          <p>{run.shift} · {run.status} · {run.bookings.length} {m.seats}</p>
-          <p className="muted">{driver.baseAddress}</p>
-          <Link className="btn" href={`/${locale}/drive/shift?run=${run.id}`}>{m.today}</Link>
-          <Link className="btn ghost" href={`/${locale}/drive/chat`}>{ar ? "المحادثات" : "Chats"}</Link>
-        </section>
-      ) : (
-        <p className="card">{ar ? "لا توجد رحلة اليوم." : "No run today."}</p>
-      )}
+      {todayRuns.length === 0 ? <p className="card">{ar ? "لا توجد رحلة اليوم." : "No run today."}</p> : todayRuns.map((item) => {
+        const seats = item.bookings.filter((booking) => booking.status !== "cancelled").length;
+        const name = shiftLabel(item.shift, ar);
+        return (
+          <section key={item.id} className="card">
+            <h2>{ar ? item.route.nameAr : item.route.nameEn}</h2>
+            <p>{name} · {item.status} · {seats} {m.seats}</p>
+            <p className="muted">{driver.baseAddress}</p>
+            <Link className="btn" href={`/${locale}/drive/shift?run=${item.id}`}>{todayRuns.length > 1 ? (ar ? name : name[0].toUpperCase() + name.slice(1)) : m.today}</Link>
+          </section>
+        );
+      })}
+      <p><Link className="btn ghost" href={`/${locale}/drive/chat`}>{ar ? "المحادثات" : "Chats"}</Link></p>
     </>
   );
 }

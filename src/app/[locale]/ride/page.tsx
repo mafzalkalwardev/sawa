@@ -3,7 +3,7 @@ import { Notice } from "@/components/notice";
 import { t } from "@/i18n/copy";
 import { requireRider } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { aed, dubaiToday, weekdayName } from "@/lib/time";
+import { aed, compareRuns, dubaiToday, shiftLabel, weekdayName } from "@/lib/time";
 import { ensureServiceDay } from "@/server/service-day";
 
 export default async function RideHome({
@@ -22,18 +22,17 @@ export default async function RideHome({
   const ar = locale === "ar";
   const upcoming = await prisma.booking.findMany({
     where: { customerId: customer.id, serviceDate: { gte: today }, status: { in: ["confirmed", "boarded", "pending_payment"] } },
-    orderBy: { serviceDate: "asc" },
     include: { run: { include: { driver: true, vehicle: true } } },
   });
-  const booking = upcoming.find((item) => item.runId) ?? upcoming[0];
+  const tickets = [...upcoming].sort(compareRuns);
   const routes = await prisma.route.findMany({ where: { active: true }, orderBy: { nameEn: "asc" } });
-  const pickup = booking ? await prisma.stop.findUnique({ where: { id: booking.pickupStopId } }) : null;
+  const pickupStops = tickets.length ? await prisma.stop.findMany({ where: { id: { in: tickets.map((item) => item.pickupStopId) } } }) : [];
   const drivers = await prisma.driver.findMany({
     where: { status: "approved", onShift: true },
     include: {
       vehicles: true,
       runs: {
-        where: { serviceDate: today, shift: "morning", status: { not: "cancelled" } },
+        where: { serviceDate: today, status: { not: "cancelled" } },
         include: { route: true, bookings: { where: { status: { not: "cancelled" } }, include: { customer: true } } },
       },
     },
@@ -66,17 +65,20 @@ export default async function RideHome({
         </Link>
       ) : <p><Link href={`/${locale}/ride/updates`}>{ar ? "التحديثات" : "Updates"}</Link></p>}
       <p><Link href={`/${locale}/ride/history`}>{ar ? "رحلاتك" : "Your rides"}</Link></p>
-      {booking ? (
-        <section className="ticket">
-          <p className="eyebrow">{m.upcoming}</p>
-          <h2>{pickup ? (ar ? pickup.nameAr : pickup.nameEn) : booking.windowLabel}</h2>
-          <p>{booking.windowLabel} · {booking.serviceDate}</p>
-          {booking.pin ? <p className="pin" aria-label={m.pin}>{booking.pin}</p> : null}
-          <p>{booking.run?.vehicle ? `${booking.run.vehicle.plate} · ${booking.run.driver.displayName}` : (ar ? "بانتظار مركبة مرخّصة." : "Waiting for a licensed vehicle.")}</p>
-          <Link className="btn" href={`/${locale}/ride/trip/${booking.id}`}>{booking.status === "boarded" ? (ar ? "أنت في المركبة" : "You're on the van") : booking.status === "completed" ? (ar ? "وصلت" : "You're there") : (ar ? "المركبة قادمة" : "The van is coming")}</Link>
-          {booking.run ? <Link className="btn ghost" href={`/${locale}/ride/chat/${booking.id}`}>{m.chat}</Link> : null}
-        </section>
-      ) : null}
+      {tickets.map((booking) => {
+        const pickup = pickupStops.find((stop) => stop.id === booking.pickupStopId);
+        return (
+          <section key={booking.id} className="ticket">
+            <p className="eyebrow">{m.upcoming}</p>
+            <h2>{pickup ? (ar ? pickup.nameAr : pickup.nameEn) : booking.windowLabel}</h2>
+            <p>{shiftLabel(booking.shift, ar)} · {booking.windowLabel} · {booking.serviceDate}</p>
+            {booking.pin ? <p className="pin" aria-label={m.pin}>{booking.pin}</p> : null}
+            <p>{booking.run?.vehicle ? `${booking.run.vehicle.plate} · ${booking.run.driver.displayName}` : (ar ? "بانتظار مركبة مرخّصة." : "Waiting for a licensed vehicle.")}</p>
+            <Link className="btn" href={`/${locale}/ride/trip/${booking.id}`}>{booking.status === "boarded" ? (ar ? "أنت في المركبة" : "You're on the van") : (ar ? "المركبة قادمة" : "The van is coming")}</Link>
+            {booking.run ? <Link className="btn ghost" href={`/${locale}/ride/chat/${booking.id}`}>{m.chat}</Link> : null}
+          </section>
+        );
+      })}
       {openRequests.map((item) => {
         const road = routes.find((route) => route.id === item.routeId);
         return (
@@ -86,7 +88,7 @@ export default async function RideHome({
           </Link>
         );
       })}
-      {booking ? null : (
+      {tickets.length ? null : (
         <Link className="choice" href={`/${locale}/ride/book`}>
           <span><strong>{ar ? "اطلب رحلة" : "Ask for a ride"}</strong><span>{ar ? "الطريق، الوقت، وهل تشارك المركبة" : "The road, the time, and whether you share the van"}</span></span>
           <strong>{ar ? "←" : "→"}</strong>
@@ -94,20 +96,21 @@ export default async function RideHome({
       )}
       <section className="stack" style={{ marginTop: 18 }}>
         <h2>{ar ? "السائقون على الطريق اليوم" : "Drivers out today"}</h2>
-        {drivers.map((driver) => {
-          const run = driver.runs[0];
+        {drivers.flatMap((driver) => {
           const vehicle = driver.vehicles.find((item) => item.id === driver.defaultVehicleId);
-          return (
-            <article key={driver.id} className="card">
-              <p className="eyebrow">{run ? (ar ? run.route.nameAr : run.route.nameEn) : driver.baseAddress}</p>
+          const runs = [...driver.runs].sort(compareRuns);
+          const cards = runs.length ? runs : [null];
+          return cards.map((run) => (
+            <article key={run?.id ?? driver.id} className="card">
+              <p className="eyebrow">{run ? `${ar ? run.route.nameAr : run.route.nameEn} · ${shiftLabel(run.shift, ar)}` : driver.baseAddress}</p>
               <h2>{driver.displayName}</h2>
               <p>{vehicle?.plate} · {vehicle?.color} {vehicle?.model}</p>
-              <p className="muted">{ar ? "على الطريق الآن" : "On the road now"}</p>
+              <p className="muted">{run?.status === "live" ? (ar ? "على الطريق الآن" : "On the road now") : run ? (ar ? "رحلة مجدولة" : "Scheduled") : (ar ? "على الوردية" : "On shift")}</p>
               {run?.bookings.map((item) => (
                 <p key={item.id}>{item.customer.fullName} · {stopName(item.pickupStopId)} → {stopName(item.dropStopId)}{item.customerId === customer.id ? ` · ${ar ? "أنت" : "You"}` : ""}</p>
               ))}
             </article>
-          );
+          ));
         })}
         <p className="muted">{ar ? `${seats.length} رحلات محجوزة اليوم` : `${seats.length} rides booked today`}</p>
       </section>

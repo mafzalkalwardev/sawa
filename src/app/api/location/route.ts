@@ -28,6 +28,11 @@ export async function POST(request: Request) {
       where: { id: driver.id },
       data: { liveLat: fix.lat, liveLng: fix.lng, liveAt: new Date() },
     });
+  } else if (driver.liveLat != null || driver.liveLng != null) {
+    await prisma.driver.update({
+      where: { id: driver.id },
+      data: { liveLat: null, liveLng: null, liveAt: new Date() },
+    });
   }
   return NextResponse.json({ ok: true, onCorridor: nearRoad });
 }

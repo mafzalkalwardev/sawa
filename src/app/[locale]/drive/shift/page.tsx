@@ -4,7 +4,7 @@ import { Notice } from "@/components/notice";
 import { t } from "@/i18n/copy";
 import { requireDriver } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { dubaiToday } from "@/lib/time";
+import { compareRuns, dubaiToday, vanTitle } from "@/lib/time";
 import { arriveStop, boardWithPin, completeRun, dropPassenger, endShift, markNoShow, reportDelay, reportIncident } from "@/server/actions/driver";
 import { awayFromRoadKm, drive, minutesAlong, onRoad } from "@/server/routing";
 
@@ -20,11 +20,10 @@ export default async function ShiftPage({
   const driver = await requireDriver(locale);
   const today = dubaiToday();
   const requested = typeof query.run === "string" ? query.run : "";
-  const run = await prisma.run.findFirst({
+  const runs = await prisma.run.findMany({
     where: requested
       ? { id: requested, driverId: driver.id, status: { in: ["scheduled", "live"] } }
       : { driverId: driver.id, serviceDate: today, status: { in: ["scheduled", "live"] } },
-    orderBy: { shift: "asc" },
     include: {
       route: true,
       vehicle: true,
@@ -32,6 +31,8 @@ export default async function ShiftPage({
       stopEvents: { orderBy: { sequence: "asc" } },
     },
   });
+  runs.sort(compareRuns);
+  const run = runs[0] ?? null;
   const stops = run ? await prisma.stop.findMany({ where: { routeId: run.routeId } }) : [];
   const stopName = new Map(stops.map((stop) => [stop.id, stop]));
   const m = t(locale);
@@ -43,11 +44,11 @@ export default async function ShiftPage({
   const live = driver.liveLat != null && driver.liveLng != null ? { lat: driver.liveLat, lng: driver.liveLng } : null;
   const liveOnRoad = Boolean(road && live && onRoad(live, road.path));
   const nextStopPoint = nextEvent ? stopName.get(nextEvent.stopId) : null;
-  const progress = liveOnRoad && road && live && nextStopPoint ? minutesAlong(road, live, nextStopPoint) : { minutes: null, passed: false };
+  const progress = awayKm == null && liveOnRoad && road && live && nextStopPoint ? minutesAlong(road, live, nextStopPoint) : { minutes: null, passed: false };
   return (
     <>
       <LocationPublisher enabled={driver.onShift} />
-      <h1>{run && run.serviceDate !== today ? `${run.serviceDate} · ${run.shift}` : (ar ? "مركبة اليوم" : "Today's van")}</h1>
+      <h1>{run ? vanTitle(run.serviceDate, run.shift, today, ar) : (ar ? "مركبة اليوم" : "Today's van")}</h1>
       <Notice locale={locale} ok={query.ok} code={query.error} />
       {!run ? <p className="card">{ar ? "لا توجد رحلة مؤكدة لليوم." : "No ride is confirmed for today."}</p> : (
         <>

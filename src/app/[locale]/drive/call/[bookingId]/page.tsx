@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { CallBox } from "@/components/call-box";
 import { requireDriver } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { dubaiToday, vanTitle } from "@/lib/time";
 
 export default async function DriverCallPage({
   params,
@@ -21,7 +22,7 @@ export default async function DriverCallPage({
     <>
       <h1>{booking.customer.fullName.split(" ")[0] || (ar ? "راكب" : "Passenger")}</h1>
       <CallBox bookingId={booking.id} locale={locale} />
-      <p><Link href={`/${locale}/drive/shift`}>{ar ? "مركبة اليوم" : "Today's van"}</Link></p>
+      <p><Link href={booking.runId ? `/${locale}/drive/shift?run=${booking.runId}` : `/${locale}/drive`}>{vanTitle(booking.serviceDate, booking.shift, dubaiToday(), ar)}</Link></p>
     </>
   );
 }

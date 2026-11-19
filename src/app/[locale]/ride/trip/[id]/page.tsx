@@ -45,14 +45,14 @@ export default async function TripPage({
   const road = stops.length ? await drive(stops) : null;
   const live = driver?.liveLat != null && driver.liveLng != null ? { lat: driver.liveLat, lng: driver.liveLng } : null;
   const base = driver?.baseLat != null && driver.baseLng != null ? { lat: driver.baseLat, lng: driver.baseLng } : null;
-  const marker = road && live && onRoad(live, road.path)
+  const ping = driver ? await prisma.locationPing.findFirst({ where: { driverId: driver.id }, orderBy: { createdAt: "desc" } }) : null;
+  const awayKm = road && ping ? awayFromRoadKm(ping, road.path) : null;
+  const liveOnRoad = Boolean(road && live && awayKm == null && onRoad(live, road.path));
+  const marker = liveOnRoad && live
     ? live
     : road && base && onRoad(base, road.path)
       ? base
       : stops[0] ? { lat: stops[0].lat, lng: stops[0].lng } : null;
-  const ping = driver ? await prisma.locationPing.findFirst({ where: { driverId: driver.id }, orderBy: { createdAt: "desc" } }) : null;
-  const awayKm = road && ping ? awayFromRoadKm(ping, road.path) : null;
-  const liveOnRoad = Boolean(road && live && onRoad(live, road.path));
   const target = booking.status === "boarded" && drop ? drop : pickup;
   const progress = liveOnRoad && road && live && target ? minutesAlong(road, live, target) : { minutes: null, passed: false };
   const host = (await headers()).get("x-forwarded-host") || (await headers()).get("host");
