@@ -27,9 +27,38 @@ export function CallBox({ bookingId, locale }: { bookingId: string; locale: stri
   const remote = useRef<HTMLAudioElement | null>(null);
   const seen = useRef(new Set<string>());
   const applied = useRef({ offer: false, answer: false });
+  const ending = useRef(false);
+  const wait = useRef(0);
 
   async function post(body: Record<string, string>) {
     await fetch(`/api/calls/${bookingId}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  }
+
+  function leave(message: string) {
+    if (ending.current) return;
+    ending.current = true;
+    window.clearTimeout(wait.current);
+    const id = callId.current;
+    if (id) void post({ action: "hangup", id });
+    pc.current?.getSenders().forEach((sender) => sender.track?.stop());
+    pc.current?.close();
+    pc.current = null;
+    callId.current = "";
+    applied.current = { offer: false, answer: false };
+    setPhase("");
+    setCall(null);
+    if (message) setProblem(message);
+  }
+
+  function arm() {
+    window.clearTimeout(wait.current);
+    wait.current = window.setTimeout(() => {
+      const node = pc.current;
+      if (!node) return;
+      const state = node.iceConnectionState;
+      if (state === "connected" || state === "completed") return;
+      leave(ar ? "تعذر توصيل المكالمة. أغلقت لدى الطرفين." : "The call could not connect. It closed on both phones.");
+    }, 25000);
   }
 
   function connection() {
@@ -40,6 +69,11 @@ export function CallBox({ bookingId, locale }: { bookingId: string; locale: stri
     };
     next.ontrack = (event) => {
       if (remote.current) remote.current.srcObject = event.streams[0];
+    };
+    next.oniceconnectionstatechange = () => {
+      if (next.iceConnectionState === "failed") {
+        leave(ar ? "تعذر توصيل المكالمة. أغلقت لدى الطرفين." : "The call could not connect. It closed on both phones.");
+      }
     };
     pc.current = next;
     return next;
@@ -54,6 +88,7 @@ export function CallBox({ bookingId, locale }: { bookingId: string; locale: stri
 
   async function start() {
     setProblem("");
+    ending.current = false;
     try {
       const created = await fetch(`/api/calls/${bookingId}`, {
         method: "POST",
@@ -67,6 +102,7 @@ export function CallBox({ bookingId, locale }: { bookingId: string; locale: stri
       await node.setLocalDescription(offer);
       await post({ action: "offer", id: created.id, offer: JSON.stringify(offer) });
       setPhase("calling");
+      arm();
     } catch {
       setProblem(ar ? "الميكروفون غير متاح على هذا الهاتف." : "The microphone is not available on this phone.");
     }
@@ -74,6 +110,7 @@ export function CallBox({ bookingId, locale }: { bookingId: string; locale: stri
 
   async function accept(current: CallState) {
     setProblem("");
+    ending.current = false;
     try {
       callId.current = current.id;
       await microphone();
@@ -83,12 +120,15 @@ export function CallBox({ bookingId, locale }: { bookingId: string; locale: stri
       await node.setLocalDescription(answer);
       await post({ action: "answer", id: current.id, answer: JSON.stringify(answer) });
       setPhase("talking");
+      arm();
     } catch {
       setProblem(ar ? "الميكروفون غير متاح على هذا الهاتف." : "The microphone is not available on this phone.");
     }
   }
 
   async function hangup(current: CallState | null) {
+    window.clearTimeout(wait.current);
+    ending.current = true;
     if (current) await post({ action: "hangup", id: current.id });
     pc.current?.getSenders().forEach((sender) => sender.track?.stop());
     pc.current?.close();
@@ -111,6 +151,8 @@ export function CallBox({ bookingId, locale }: { bookingId: string; locale: stri
       setCall(next);
       if (!next || next.status === "declined" || next.status === "ended") {
         if (pc.current || callId.current) {
+          window.clearTimeout(wait.current);
+          ending.current = true;
           pc.current?.getSenders().forEach((sender) => sender.track?.stop());
           pc.current?.close();
           pc.current = null;
@@ -143,6 +185,7 @@ export function CallBox({ bookingId, locale }: { bookingId: string; locale: stri
     return () => {
       stop = true;
       clearInterval(timer);
+      window.clearTimeout(wait.current);
     };
   }, [bookingId]);
 

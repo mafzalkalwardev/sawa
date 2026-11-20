@@ -38,6 +38,7 @@ export default async function DriveSignup({
           <input type="hidden" name="locale" value={locale} />
           <label>{m.name}<input name="fullName" autoComplete="name" required /></label>
           <label>{m.phone}<input name="phone" inputMode="tel" autoComplete="tel" placeholder="050 000 0000" required /></label>
+          <label>{m.otp}<input name="code" inputMode="numeric" autoComplete="one-time-code" placeholder="123456" required /></label>
           <label>{ar ? "أي طريق تقود؟" : "Which road do you drive?"}
             <select name="routeSlug" required defaultValue={routes[0]?.slug ?? ""}>
               {routes.map((route) => <option key={route.id} value={route.slug}>{ar ? route.nameAr : route.nameEn}</option>)}

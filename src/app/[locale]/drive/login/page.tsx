@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Notice } from "@/components/notice";
 import { t } from "@/i18n/copy";
 import { getSession } from "@/lib/auth";
-import { requestOtp } from "@/server/actions/auth";
+import { requestOtp, verifyOtp } from "@/server/actions/auth";
 
 export default async function DriveLogin({
   params,
@@ -30,12 +30,24 @@ export default async function DriveLogin({
         <h1>{ar ? "دخول السائق" : "Driver sign in"}</h1>
         <p className="muted">{ar ? "الرقم الذي قدّمت به للقيادة." : "The number you used to apply to drive."}</p>
         <Notice locale={locale} code={query.error} />
-        <form className="stack" action={requestOtp}>
-          <input type="hidden" name="locale" value={locale} />
-          <input type="hidden" name="mode" value="driver" />
-          <label>{m.phone}<input name="phone" placeholder="050 100 0002" required /></label>
-          <button className="btn" type="submit">{ar ? "دخول" : "Sign in"}</button>
-        </form>
+        {query.sent === "1" && query.phone ? (
+          <form className="stack" action={verifyOtp}>
+            <input type="hidden" name="locale" value={locale} />
+            <input type="hidden" name="mode" value="driver" />
+            <input type="hidden" name="phone" value={query.phone} />
+            <p className="card">{query.phone}</p>
+            <label>{m.otp}<input name="code" inputMode="numeric" autoComplete="one-time-code" placeholder="123456" required /></label>
+            <p className="muted">{ar ? "رمز هذا العرض هو 123456. لا تُرسل رسالة نصية." : "The demo code is 123456. No text message is sent."}</p>
+            <button className="btn" type="submit">{ar ? "دخول" : "Sign in"}</button>
+          </form>
+        ) : (
+          <form className="stack" action={requestOtp}>
+            <input type="hidden" name="locale" value={locale} />
+            <input type="hidden" name="mode" value="driver" />
+            <label>{m.phone}<input name="phone" inputMode="tel" placeholder="050 100 0002" required /></label>
+            <button className="btn" type="submit">{ar ? "متابعة" : "Continue"}</button>
+          </form>
+        )}
         <p className="muted"><Link href={`/${locale}/drive/signup`}>{ar ? "التقديم للقيادة" : "Apply to drive"}</Link></p>
         <p className="muted"><Link href={`/${locale}/ride/login`}>{ar ? "دخول الراكب" : "Passenger sign in"}</Link></p>
       </main>

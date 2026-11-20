@@ -32,19 +32,17 @@ export async function requestOtp(formData: FormData) {
   const next = safeNext(String(formData.get("next") || ""), locale);
   const base = `/${locale}/${surface(mode)}/login`;
   if (!phone.startsWith("+971") || phone.length < 12) redirect(`${base}?error=missing`);
+  const sent = `${base}?sent=1&phone=${encodeURIComponent(phone)}${next ? `&next=${encodeURIComponent(next)}` : ""}`;
   if (mode === "driver") {
     const driver = await prisma.driver.findUnique({ where: { phone } });
     if (!driver) redirect(`${base}?error=new`);
-    await setSession({ kind: "driver", id: driver.id });
-    redirect(`/${locale}/drive`);
+    redirect(sent);
   }
   const existingDriver = await prisma.driver.findUnique({ where: { phone } });
   if (existingDriver) redirect(`${base}?error=driver`);
   const customer = await prisma.customer.findUnique({ where: { phone } });
   if (!customer || customer.status === "deleted") redirect(`/${locale}/ride/signup?error=new`);
-  await setSession({ kind: "rider", id: customer.id });
-  if (!customer.fullName || !customer.photoUrl || !customer.idDocumentUrl) redirect(`/${locale}/ride/profile${next ? `?next=${encodeURIComponent(next)}` : ""}`);
-  redirect(next || `/${locale}/ride`);
+  redirect(sent);
 }
 
 export async function joinRider(formData: FormData) {
@@ -57,6 +55,7 @@ export async function joinRider(formData: FormData) {
   if (existing && existing.status !== "deleted" && existing.fullName && existing.photoUrl && existing.idDocumentUrl) {
     redirect(`/${locale}/ride/login?error=exists`);
   }
+  if (String(formData.get("code") || "").trim() !== DEMO_OTP) redirect(`${base}?error=otp`);
   const code = String(formData.get("referral") || "").trim().toUpperCase();
   let referredById: string | null = null;
   if (code) {
@@ -91,6 +90,7 @@ export async function joinDriver(formData: FormData) {
   const fullName = String(formData.get("fullName") || "").trim();
   const routeSlug = String(formData.get("routeSlug") || "");
   const base = `/${locale}/drive/signup`;
+  if (String(formData.get("code") || "").trim() !== DEMO_OTP) redirect(`${base}?error=otp`);
   if (!phone.startsWith("+971") || phone.length < 12 || fullName.length < 2) redirect(`${base}?error=missing`);
   const route = await prisma.route.findFirst({ where: { slug: routeSlug, active: true } });
   if (!route) redirect(`${base}?error=missing`);
@@ -120,36 +120,27 @@ export async function verifyOtp(formData: FormData) {
   const mode = String(formData.get("mode") || "rider");
   const phone = normalizePhone(String(formData.get("phone") || ""));
   const code = String(formData.get("code") || "").trim();
+  const next = safeNext(String(formData.get("next") || ""), locale);
   const base = `/${locale}/${surface(mode)}/login`;
-  if (code !== DEMO_OTP) redirect(`${base}?sent=1&phone=${encodeURIComponent(phone)}&error=otp`);
+  const again = `${base}?sent=1&phone=${encodeURIComponent(phone)}${next ? `&next=${encodeURIComponent(next)}` : ""}`;
+  if (code !== DEMO_OTP) redirect(`${again}&error=otp`);
   await prisma.otpChallenge.updateMany({ where: { phone, consumed: false }, data: { consumed: true } });
   const driver = await prisma.driver.findUnique({ where: { phone } });
 
   if (mode === "driver") {
-    if (!driver) redirect(`${base}?error=rider`);
+    if (!driver) redirect(`${base}?error=new`);
     await setSession({ kind: "driver", id: driver.id });
     redirect(`/${locale}/drive`);
   }
 
   if (driver) redirect(`${base}?error=driver`);
-  let customer = await prisma.customer.findUnique({ where: { phone } });
-  if (!customer || customer.status === "deleted") {
-    customer = await prisma.customer.create({
-      data: {
-        id: nid("cus"),
-        fullName: "",
-        phone,
-        language: locale === "ar" ? "ar" : "en",
-        status: "active",
-        preference: { create: { id: nid("pref") } },
-      },
-    });
-    await setSession({ kind: "rider", id: customer.id });
-    redirect(`/${locale}/ride/profile`);
-  }
+  const customer = await prisma.customer.findUnique({ where: { phone } });
+  if (!customer || customer.status === "deleted") redirect(`/${locale}/ride/signup?error=new`);
   await setSession({ kind: "rider", id: customer.id });
-  if (!customer.fullName) redirect(`/${locale}/ride/profile`);
-  redirect(`/${locale}/ride`);
+  if (!customer.fullName || !customer.photoUrl || !customer.idDocumentUrl) {
+    redirect(`/${locale}/ride/profile${next ? `?next=${encodeURIComponent(next)}` : ""}`);
+  }
+  redirect(next || `/${locale}/ride`);
 }
 
 export async function staffLogin(formData: FormData) {

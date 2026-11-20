@@ -31,9 +31,9 @@ export default async function PayPage({
       <form className="stack" action={payInvoice}>
         <input type="hidden" name="locale" value={locale} />
         <input type="hidden" name="invoiceId" value={invoice.id} />
-        <label>{m.card}<input name="card" inputMode="numeric" autoComplete="cc-number" placeholder="4242 4242 4242 4242" required /></label>
-        <label>{m.expiry}<input name="expiry" placeholder="12/30" required /></label>
-        <label>{m.cvc}<input name="cvc" inputMode="numeric" placeholder="123" required /></label>
+        <label>{m.card}<input name="card" inputMode="numeric" autoComplete="off" placeholder="4242 4242 4242 4242" required /></label>
+        <label>{m.expiry}<input name="expiry" autoComplete="off" placeholder="12/30" required /></label>
+        <label>{m.cvc}<input name="cvc" inputMode="numeric" autoComplete="off" placeholder="123" required /></label>
         <button className="btn" type="submit">{m.pay}</button>
       </form>
     </>

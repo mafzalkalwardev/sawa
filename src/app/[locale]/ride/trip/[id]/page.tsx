@@ -30,7 +30,7 @@ export default async function TripPage({
   });
   if (!booking) notFound();
   const companions = booking.runId
-    ? await prisma.booking.findMany({ where: { runId: booking.runId, status: { not: "cancelled" }, customerId: { not: customer.id } }, include: { customer: true } })
+    ? await prisma.booking.findMany({ where: { runId: booking.runId, status: { in: ["confirmed", "boarded", "pending_payment"] }, customerId: { not: customer.id } }, include: { customer: true } })
     : [];
   const splits = booking.runId
     ? await prisma.fareSplit.findMany({ where: { runId: booking.runId, status: "offered", OR: [{ fromCustomerId: customer.id }, { toCustomerId: customer.id }] } })
@@ -43,11 +43,12 @@ export default async function TripPage({
   const routeStops = stops.length ? stops : await prisma.stop.findMany({ where: { routeId: booking.routeId }, orderBy: { sequence: "asc" } });
   const driver = booking.run?.driver;
   const road = stops.length ? await drive(stops) : null;
-  const live = driver?.liveLat != null && driver.liveLng != null ? { lat: driver.liveLat, lng: driver.liveLng } : null;
+  const open = booking.run?.status === "live";
+  const live = open && driver?.liveLat != null && driver.liveLng != null ? { lat: driver.liveLat, lng: driver.liveLng } : null;
   const base = driver?.baseLat != null && driver.baseLng != null ? { lat: driver.baseLat, lng: driver.baseLng } : null;
   const ping = driver ? await prisma.locationPing.findFirst({ where: { driverId: driver.id }, orderBy: { createdAt: "desc" } }) : null;
-  const awayKm = road && ping ? awayFromRoadKm(ping, road.path) : null;
-  const liveOnRoad = Boolean(road && live && awayKm == null && onRoad(live, road.path));
+  const awayKm = open && road && ping ? awayFromRoadKm(ping, road.path) : null;
+  const liveOnRoad = Boolean(open && road && live && awayKm == null && onRoad(live, road.path));
   const marker = liveOnRoad && live
     ? live
     : road && base && onRoad(base, road.path)

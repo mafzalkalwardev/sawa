@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export function UpdateNotifier({ locale }: { locale: string }) {
   useEffect(() => {
@@ -33,6 +33,11 @@ export function UpdateNotifier({ locale }: { locale: string }) {
 
 export function AskPhoneAlert({ locale }: { locale: string }) {
   const ar = locale === "ar";
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    if (!navigator.userAgent.includes("; wv")) setShow(true);
+  }, []);
+  if (!show) return null;
   return (
     <button
       className="btn ghost"

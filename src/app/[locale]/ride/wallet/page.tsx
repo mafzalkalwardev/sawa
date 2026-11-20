@@ -23,6 +23,7 @@ export default async function WalletPage({
     if (value === "referral-invite") return ar ? "صديق انضم" : "A friend joined";
     if (value === "cancel") return ar ? "إلغاء" : "Cancelled seat";
     if (value === "stops") return ar ? "تغيير الموقف" : "Changed stops";
+    if (value === "split") return ar ? "تقسيم الأجرة" : "Split fare";
     return value;
   };
   return (
@@ -40,7 +41,7 @@ export default async function WalletPage({
             <option value="100">100 AED</option>
           </select>
         </label>
-        <label>{ar ? "رقم البطاقة" : "Card number"}<input name="card" inputMode="numeric" autoComplete="cc-number" placeholder="4242 4242 4242 4242" required /></label>
+        <label>{ar ? "رقم البطاقة" : "Card number"}<input name="card" inputMode="numeric" autoComplete="off" placeholder="4242 4242 4242 4242" required /></label>
         <button className="btn" type="submit">{ar ? "أضف إلى المحفظة" : "Add to the wallet"}</button>
       </form>
       <h2>{ar ? "الحركات" : "Entries"}</h2>

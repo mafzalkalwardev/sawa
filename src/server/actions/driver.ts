@@ -64,9 +64,6 @@ export async function startShift(formData: FormData) {
   });
   runs.sort(compareRuns);
   const run = runs[0];
-  if (run && run.status === "scheduled") {
-    await prisma.run.update({ where: { id: run.id }, data: { status: "live", startedAt: new Date() } });
-  }
   redirect(run ? vanPath(locale, run.id) : `/${locale}/drive/shift`);
 }
 

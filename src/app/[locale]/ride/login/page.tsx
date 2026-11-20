@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Notice } from "@/components/notice";
 import { t } from "@/i18n/copy";
 import { getSession } from "@/lib/auth";
-import { requestOtp } from "@/server/actions/auth";
+import { requestOtp, verifyOtp } from "@/server/actions/auth";
 
 export default async function RideLogin({
   params,
@@ -31,13 +31,26 @@ export default async function RideLogin({
         <h1>{locale === "ar" ? "دخول الراكب" : "Passenger sign in"}</h1>
         <p className="muted">{locale === "ar" ? "نفس الرقم الذي أنشأت به حساب الراكب." : "The number you used to create your passenger account."}</p>
         <Notice locale={locale} code={query.error} />
-        <form className="stack" action={requestOtp}>
-          <input type="hidden" name="locale" value={locale} />
-          <input type="hidden" name="mode" value="rider" />
-          {next ? <input type="hidden" name="next" value={next} /> : null}
-          <label>{m.phone}<input name="phone" inputMode="tel" placeholder="050 100 0001" required /></label>
-          <button className="btn" type="submit">{locale === "ar" ? "دخول" : "Sign in"}</button>
-        </form>
+        {query.sent === "1" && query.phone ? (
+          <form className="stack" action={verifyOtp}>
+            <input type="hidden" name="locale" value={locale} />
+            <input type="hidden" name="mode" value="rider" />
+            <input type="hidden" name="phone" value={query.phone} />
+            {next ? <input type="hidden" name="next" value={next} /> : null}
+            <p className="card">{query.phone}</p>
+            <label>{m.otp}<input name="code" inputMode="numeric" autoComplete="one-time-code" placeholder="123456" required /></label>
+            <p className="muted">{locale === "ar" ? "رمز هذا العرض هو 123456. لا تُرسل رسالة نصية." : "The demo code is 123456. No text message is sent."}</p>
+            <button className="btn" type="submit">{locale === "ar" ? "دخول" : "Sign in"}</button>
+          </form>
+        ) : (
+          <form className="stack" action={requestOtp}>
+            <input type="hidden" name="locale" value={locale} />
+            <input type="hidden" name="mode" value="rider" />
+            {next ? <input type="hidden" name="next" value={next} /> : null}
+            <label>{m.phone}<input name="phone" inputMode="tel" placeholder="050 100 0001" required /></label>
+            <button className="btn" type="submit">{locale === "ar" ? "متابعة" : "Continue"}</button>
+          </form>
+        )}
         <p className="muted"><Link href={`/${locale}/ride/signup`}>{locale === "ar" ? "حساب راكب جديد" : "Create a passenger account"}</Link></p>
         <p className="muted"><Link href={`/${locale}/drive/login`}>{locale === "ar" ? "دخول السائق" : "Driver sign in"}</Link></p>
       </main>

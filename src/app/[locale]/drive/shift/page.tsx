@@ -39,10 +39,11 @@ export default async function ShiftPage({
   const ar = locale === "ar";
   const nextEvent = run?.stopEvents.find((event) => event.status !== "arrived");
   const road = stops.length ? await drive([...stops].sort((a, b) => a.sequence - b.sequence)) : null;
-  const ping = await prisma.locationPing.findFirst({ where: { driverId: driver.id }, orderBy: { createdAt: "desc" } });
+  const open = run?.status === "live";
+  const ping = open ? await prisma.locationPing.findFirst({ where: { driverId: driver.id }, orderBy: { createdAt: "desc" } }) : null;
   const awayKm = road && ping ? awayFromRoadKm(ping, road.path) : null;
-  const live = driver.liveLat != null && driver.liveLng != null ? { lat: driver.liveLat, lng: driver.liveLng } : null;
-  const liveOnRoad = Boolean(road && live && onRoad(live, road.path));
+  const live = open && driver.liveLat != null && driver.liveLng != null ? { lat: driver.liveLat, lng: driver.liveLng } : null;
+  const liveOnRoad = Boolean(open && road && live && awayKm == null && onRoad(live, road.path));
   const nextStopPoint = nextEvent ? stopName.get(nextEvent.stopId) : null;
   const progress = awayKm == null && liveOnRoad && road && live && nextStopPoint ? minutesAlong(road, live, nextStopPoint) : { minutes: null, passed: false };
   return (

@@ -35,6 +35,10 @@ export default async function SettingsPage({
       <h1>{m.account}</h1>
       <Notice locale={locale} ok={query.ok} code={query.error} />
       <p>{customer.fullName}</p>
+      <form action={logout}>
+        <input type="hidden" name="next" value={`/${locale}/app`} />
+        <button className="btn" type="submit">{m.logout}</button>
+      </form>
       <p className="card">{ar ? "رمزك" : "Your code"} <strong>{code}</strong><br /><span className="muted">{ar ? `الصديق يحصل على ${REFERRAL_AED} درهم عند أول رحلة، وأنت أيضًا.` : `A friend gets AED ${REFERRAL_AED} on their first ride, and so do you.`}</span></p>
       <p><Link className="btn" href={`/${locale}/ride/wallet`}>{ar ? `المحفظة · ${customer.walletBalanceAed} درهم` : `Wallet · AED ${customer.walletBalanceAed}`}</Link></p>
       <section className="card stack">
@@ -63,10 +67,6 @@ export default async function SettingsPage({
       <form action={setLargeType}>
         <input type="hidden" name="locale" value={locale} />
         <button className="btn ghost" type="submit">{m.largeType}: {large ? (ar ? "تشغيل" : "On") : (ar ? "إيقاف" : "Off")}</button>
-      </form>
-      <form action={logout}>
-        <input type="hidden" name="next" value={`/${locale}/app`} />
-        <button className="btn ghost" type="submit">{m.logout}</button>
       </form>
       <p className="muted">{m.locationDisclosure}</p>
       <p><Link href={`/${locale}/privacy`}>{m.privacy}</Link> · <Link href={`/${locale}/terms`}>{m.terms}</Link></p>

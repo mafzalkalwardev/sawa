@@ -4,7 +4,6 @@ import { t } from "@/i18n/copy";
 import { requireRider } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { aed, compareRuns, dubaiToday, shiftLabel, weekdayName } from "@/lib/time";
-import { ensureServiceDay } from "@/server/service-day";
 
 export default async function RideHome({
   params,
@@ -16,7 +15,6 @@ export default async function RideHome({
   const { locale } = await params;
   const query = await searchParams;
   const customer = await requireRider(locale);
-  await ensureServiceDay();
   const today = dubaiToday();
   const m = t(locale);
   const ar = locale === "ar";
@@ -33,17 +31,12 @@ export default async function RideHome({
       vehicles: true,
       runs: {
         where: { serviceDate: today, status: { not: "cancelled" } },
-        include: { route: true, bookings: { where: { status: { not: "cancelled" } }, include: { customer: true } } },
+        include: { route: true, bookings: { where: { status: { in: ["confirmed", "boarded", "pending_payment"] } } } },
       },
     },
     orderBy: { displayName: "asc" },
   });
-  const seats = drivers.flatMap((driver) => driver.runs.flatMap((run) => run.bookings.map((item) => ({ item, driver, run }))));
-  const stops = await prisma.stop.findMany();
-  const stopName = (id: string) => {
-    const stop = stops.find((item) => item.id === id);
-    return stop ? (ar ? stop.nameAr : stop.nameEn) : "";
-  };
+  const seats = drivers.flatMap((driver) => driver.runs.flatMap((run) => run.bookings));
   const first = customer.fullName.split(" ")[0];
   const unread = await prisma.rideUpdate.count({ where: { customerId: customer.id, readAt: null } });
   const openRequests = await prisma.rideRequest.findMany({
@@ -106,9 +99,6 @@ export default async function RideHome({
               <h2>{driver.displayName}</h2>
               <p>{vehicle?.plate} · {vehicle?.color} {vehicle?.model}</p>
               <p className="muted">{run?.status === "live" ? (ar ? "على الطريق الآن" : "On the road now") : run ? (ar ? "رحلة مجدولة" : "Scheduled") : (ar ? "على الوردية" : "On shift")}</p>
-              {run?.bookings.map((item) => (
-                <p key={item.id}>{item.customer.fullName} · {stopName(item.pickupStopId)} → {stopName(item.dropStopId)}{item.customerId === customer.id ? ` · ${ar ? "أنت" : "You"}` : ""}</p>
-              ))}
             </article>
           ));
         })}

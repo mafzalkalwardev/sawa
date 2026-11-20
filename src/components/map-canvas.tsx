@@ -14,7 +14,8 @@ export default function MapCanvas({ points, path }: { points: MapPoint[]; path?:
       const L = (await import("leaflet")).default;
       if (cancelled || !ref.current) return;
       const center = points[0] ? ([points[0].lat, points[0].lng] as [number, number]) : ([25.2, 55.27] as [number, number]);
-      map = L.map(ref.current, { scrollWheelZoom: false }).setView(center, 10);
+      const coarse = window.matchMedia("(pointer: coarse)").matches;
+      map = L.map(ref.current, { scrollWheelZoom: false, dragging: !coarse }).setView(center, 10);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "&copy; OpenStreetMap",
       }).addTo(map);

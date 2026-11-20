@@ -5,7 +5,6 @@ import { requireDriver } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { compareRuns, dubaiToday, shiftLabel, vanTitle } from "@/lib/time";
 import { driverDocsValid } from "@/server/records";
-import { ensureServiceDay } from "@/server/service-day";
 import { startShift } from "@/server/actions/driver";
 import { acceptRequest } from "@/server/actions/requests";
 import { LiveRefresh } from "@/components/live-refresh";
@@ -21,7 +20,6 @@ export default async function DriveHome({
   const { locale } = await params;
   const query = await searchParams;
   const driver = await requireDriver(locale);
-  await ensureServiceDay();
   const valid = await driverDocsValid(driver.id, driver.defaultVehicleId);
   const requests = await prisma.rideRequest.findMany({
     where: { status: { in: ["queued", "accepted", "agreed"] } },
@@ -59,7 +57,7 @@ export default async function DriveHome({
       <Notice locale={locale} code={query.error} ok={query.ok} />
       <p><Link href={`/${locale}/drive/updates`}>{unread ? (ar ? `تحديثات · ${unread} جديدة` : `Updates · ${unread} new`) : (ar ? "التحديثات" : "Updates")}</Link></p>
       {runs.map((item) => {
-        const seats = item.bookings.filter((booking) => booking.status !== "cancelled").length;
+        const seats = item.bookings.filter((booking) => !["cancelled", "completed", "no_show"].includes(booking.status)).length;
         const label = vanTitle(item.serviceDate, item.shift, today, ar);
         return (
           <Link key={item.id} className="choice" href={`/${locale}/drive/shift?run=${item.id}`}>
@@ -110,7 +108,7 @@ export default async function DriveHome({
         </form>
       )}
       {todayRuns.length === 0 ? <p className="card">{ar ? "لا توجد رحلة اليوم." : "No run today."}</p> : todayRuns.map((item) => {
-        const seats = item.bookings.filter((booking) => booking.status !== "cancelled").length;
+        const seats = item.bookings.filter((booking) => !["cancelled", "completed", "no_show"].includes(booking.status)).length;
         const name = shiftLabel(item.shift, ar);
         return (
           <section key={item.id} className="card">

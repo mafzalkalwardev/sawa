@@ -33,12 +33,13 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       next = run.route.stops.find((stop) => stop.id === stopId) ?? next;
     }
   }
-  const live = run.driver.liveLat != null && run.driver.liveLng != null
+  const open = run.status === "live";
+  const live = open && run.driver.liveLat != null && run.driver.liveLng != null
     ? { lat: run.driver.liveLat, lng: run.driver.liveLng }
     : null;
-  const ping = await prisma.locationPing.findFirst({ where: { driverId: run.driverId }, orderBy: { createdAt: "desc" } });
+  const ping = open ? await prisma.locationPing.findFirst({ where: { driverId: run.driverId }, orderBy: { createdAt: "desc" } }) : null;
   const awayKm = ping ? awayFromRoadKm(ping, road.path) : null;
-  const liveOnRoad = live != null && awayKm == null && onRoad(live, road.path);
+  const liveOnRoad = open && live != null && awayKm == null && onRoad(live, road.path);
   const base = run.driver.baseLat != null && run.driver.baseLng != null
     ? { lat: run.driver.baseLat, lng: run.driver.baseLng }
     : null;

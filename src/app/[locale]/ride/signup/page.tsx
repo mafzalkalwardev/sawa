@@ -36,6 +36,8 @@ export default async function RideSignup({
           <input type="hidden" name="locale" value={locale} />
           <label>{m.phone}<input name="phone" inputMode="tel" autoComplete="tel" placeholder="050 000 0000" required /></label>
           <label>{ar ? "رمز صديق، إن وُجد" : "A friend's code, if you have one"}<input name="referral" autoCapitalize="characters" placeholder="AB12CD" /></label>
+          <label>{m.otp}<input name="code" inputMode="numeric" autoComplete="one-time-code" placeholder="123456" required /></label>
+          <p className="muted">{ar ? "رمز هذا العرض هو 123456. لا تُرسل رسالة نصية." : "The demo code is 123456. No text message is sent."}</p>
           <button className="btn" type="submit">{ar ? "متابعة" : "Continue"}</button>
         </form>
         <p className="muted"><Link href={`/${locale}/ride/login`}>{ar ? "لديك حساب؟ دخول الراكب" : "Already a passenger? Sign in"}</Link></p>

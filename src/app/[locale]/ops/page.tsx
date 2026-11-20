@@ -4,7 +4,6 @@ import { requireStaff } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { addDays, dubaiToday } from "@/lib/time";
 import { enforceDocumentExpiry } from "@/server/records";
-import { ensureServiceDay } from "@/server/service-day";
 
 export default async function Dashboard({
   params,
@@ -16,7 +15,6 @@ export default async function Dashboard({
   const { locale } = await params;
   const query = await searchParams;
   await requireStaff(locale);
-  await ensureServiceDay();
   await enforceDocumentExpiry();
   const today = dubaiToday();
   const soon = addDays(today, 30);

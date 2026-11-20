@@ -10,7 +10,7 @@ import { tellDriver, tellRider } from "@/server/updates";
 import { holdsSeat, joinSharedPool, pooledFare, refreshPool } from "@/server/pool";
 import { hoursUntilShift } from "@/lib/time";
 import { priceForStops } from "@/server/stops";
-import { createRun, seatsFree } from "@/server/runs";
+import { createRun } from "@/server/runs";
 import { creditReferral } from "@/server/wallet";
 
 export async function requestRide(formData: FormData) {
@@ -220,7 +220,13 @@ export async function createOrder(formData: FormData) {
   const id = String(formData.get("requestId") || "");
   const session = await getSession();
   const request = await prisma.rideRequest.findUnique({ where: { id } });
-  if (!session || !request || request.status !== "agreed" || !request.driverId || !request.offerAed) redirect(`/${locale}/app`);
+  if (!session || !request || !request.driverId) redirect(`/${locale}/app`);
+  if (request.status === "ordered" && request.bookingId) {
+    if (session.kind === "driver" && session.id === request.driverId) redirect(`/${locale}/drive`);
+    if (session.kind === "rider" && session.id === request.customerId) redirect(`/${locale}/ride/trip/${request.bookingId}?ok=booked`);
+    redirect(`/${locale}/app`);
+  }
+  if (request.status !== "agreed" || !request.offerAed) redirect(`/${locale}/app`);
   const allowed = (session.kind === "rider" && session.id === request.customerId) || (session.kind === "driver" && session.id === request.driverId);
   if (!allowed) redirect(`/${locale}/app`);
   const driver = await prisma.driver.findUnique({ where: { id: request.driverId }, include: { vehicles: true } });
@@ -241,27 +247,47 @@ export async function createOrder(formData: FormData) {
     });
   }
   const place = async (item: typeof request) => {
-    if (!item.offerAed) return null;
-    if ((await seatsFree(run.id)) < 1) return null;
-    const booking = await prisma.booking.create({
-      data: {
-        id: nid("bkg"),
-        customerId: item.customerId,
-        runId: run.id,
-        routeId: item.routeId,
-        serviceDate: item.serviceDate,
-        shift: item.shift,
-        windowLabel: item.windowLabel,
-        pickupStopId: item.pickupStopId,
-        dropStopId: item.dropStopId,
-        product: item.product,
-        rideMode: item.rideMode,
-        priceAed: item.offerAed,
-        status: "confirmed",
-        pin: pinCode(),
-        shareToken: shareToken(),
-      },
+    const placed = await prisma.$transaction(async (tx) => {
+      const fresh = await tx.rideRequest.findUnique({ where: { id: item.id } });
+      if (!fresh?.offerAed) return { booking: null, created: false };
+      if (fresh.status === "ordered" && fresh.bookingId) {
+        const booking = await tx.booking.findUnique({ where: { id: fresh.bookingId } });
+        return { booking, created: false };
+      }
+      if (fresh.status !== "agreed") return { booking: null, created: false };
+      const seat = await tx.vehicle.findUnique({ where: { id: run.vehicleId }, select: { seatCapacity: true } });
+      const used = await tx.booking.count({ where: { runId: run.id, status: { in: ["confirmed", "boarded", "completed"] } } });
+      if (used >= (seat?.seatCapacity ?? 0)) return { booking: null, created: false };
+      const claimed = await tx.rideRequest.updateMany({ where: { id: fresh.id, status: "agreed" }, data: { status: "ordered" } });
+      if (claimed.count !== 1) {
+        const won = await tx.rideRequest.findUnique({ where: { id: fresh.id } });
+        const booking = won?.bookingId ? await tx.booking.findUnique({ where: { id: won.bookingId } }) : null;
+        return { booking, created: false };
+      }
+      const booking = await tx.booking.create({
+        data: {
+          id: nid("bkg"),
+          customerId: fresh.customerId,
+          runId: run.id,
+          routeId: fresh.routeId,
+          serviceDate: fresh.serviceDate,
+          shift: fresh.shift,
+          windowLabel: fresh.windowLabel,
+          pickupStopId: fresh.pickupStopId,
+          dropStopId: fresh.dropStopId,
+          product: fresh.product,
+          rideMode: fresh.rideMode,
+          priceAed: fresh.offerAed,
+          status: "confirmed",
+          pin: pinCode(),
+          shareToken: shareToken(),
+        },
+      });
+      await tx.rideRequest.update({ where: { id: fresh.id }, data: { bookingId: booking.id } });
+      return { booking, created: true };
     });
+    if (!placed.booking || !placed.created) return placed.booking;
+    const booking = placed.booking;
     await openChat(booking.id);
     if (item.product === "monthly") {
       const pref = await prisma.preference.findUnique({ where: { customerId: item.customerId } });
@@ -273,7 +299,7 @@ export async function createOrder(formData: FormData) {
         dropStopId: item.dropStopId,
         morningWindow: item.shift === "morning" ? item.windowLabel : "7:00–8:10",
         eveningWindow: item.shift === "evening" ? item.windowLabel : "17:40–19:00",
-        priceAed: item.offerAed,
+        priceAed: booking.priceAed,
         womenOnly: pref?.womenOnly ?? false,
         status: "active",
         product: "monthly",
@@ -292,7 +318,6 @@ export async function createOrder(formData: FormData) {
         });
       }
     }
-    await prisma.rideRequest.update({ where: { id: item.id }, data: { status: "ordered", bookingId: booking.id } });
     await copyRequestChat(item.id, booking.id);
     await creditReferral(item.customerId);
     const person = await prisma.customer.findUnique({ where: { id: item.customerId } });

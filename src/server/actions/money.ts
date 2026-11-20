@@ -29,15 +29,34 @@ export async function payFromWallet(formData: FormData) {
   const locale = String(formData.get("locale") || "en");
   const customer = await requireRider(locale);
   const bookingId = String(formData.get("bookingId") || "");
-  const booking = await prisma.booking.findFirst({ where: { id: bookingId, customerId: customer.id } });
-  if (!booking || booking.status === "cancelled") redirect(`/${locale}/ride?error=missing`);
-  const due = booking.priceAed - booking.walletPaidAed;
-  if (due <= 0) redirect(`/${locale}/ride/trip/${booking.id}?ok=paid`);
-  const fresh = await prisma.customer.findUnique({ where: { id: customer.id } });
-  if (!fresh || fresh.walletBalanceAed < due) redirect(`/${locale}/ride/trip/${booking.id}?error=wallet`);
-  await addWallet(customer.id, -due, "fare", booking.id);
-  await prisma.booking.update({ where: { id: booking.id }, data: { walletPaidAed: { increment: due } } });
-  redirect(`/${locale}/ride/trip/${booking.id}?ok=paid`);
+  let result: { kind: "missing" } | { kind: "short" | "paid"; id: string };
+  try {
+    result = await prisma.$transaction(async (tx) => {
+      const booking = await tx.booking.findFirst({ where: { id: bookingId, customerId: customer.id } });
+      if (!booking || booking.status === "cancelled") return { kind: "missing" };
+      const due = booking.priceAed - booking.walletPaidAed;
+      if (due <= 0) return { kind: "paid", id: booking.id };
+      const taken = await tx.customer.updateMany({
+        where: { id: customer.id, walletBalanceAed: { gte: due } },
+        data: { walletBalanceAed: { decrement: due } },
+      });
+      if (taken.count !== 1) return { kind: "short", id: booking.id };
+      const marked = await tx.booking.updateMany({
+        where: { id: booking.id, walletPaidAed: booking.walletPaidAed },
+        data: { walletPaidAed: { increment: due } },
+      });
+      if (marked.count !== 1) throw new Error("paid");
+      await tx.walletEntry.create({
+        data: { id: nid("wal"), customerId: customer.id, amountAed: -due, reason: "fare", bookingId: booking.id },
+      });
+      return { kind: "paid", id: booking.id };
+    });
+  } catch {
+    redirect(`/${locale}/ride/trip/${bookingId}?error=wallet`);
+  }
+  if (result.kind === "missing") redirect(`/${locale}/ride?error=missing`);
+  if (result.kind === "short") redirect(`/${locale}/ride/trip/${result.id}?error=wallet`);
+  redirect(`/${locale}/ride/trip/${result.id}?ok=paid`);
 }
 
 export async function offerSplit(formData: FormData) {
@@ -83,16 +102,46 @@ export async function answerSplit(formData: FormData) {
   });
   if (!mine) redirect(`/${locale}/ride?error=missing`);
   if (!yes) {
-    await prisma.fareSplit.update({ where: { id: split.id }, data: { status: "declined" } });
+    await prisma.fareSplit.updateMany({ where: { id: split.id, status: "offered" }, data: { status: "declined" } });
     redirect(`/${locale}/ride/trip/${mine.id}?ok=saved`);
   }
-  const theirs = await prisma.booking.findUnique({ where: { id: split.bookingId } });
-  if (!theirs || theirs.priceAed - split.amountAed < 1) {
-    await prisma.fareSplit.update({ where: { id: split.id }, data: { status: "declined" } });
+  let outcome: "ok" | "bad" = "ok";
+  try {
+    outcome = await prisma.$transaction(async (tx) => {
+      const claimed = await tx.fareSplit.updateMany({
+        where: { id: split.id, status: "offered" },
+        data: { status: "accepted" },
+      });
+      if (claimed.count !== 1) return "ok";
+      const theirs = await tx.booking.findUnique({ where: { id: split.bookingId } });
+      const mineFresh = await tx.booking.findUnique({ where: { id: mine.id } });
+      if (!theirs || !mineFresh || theirs.status === "cancelled" || theirs.priceAed - split.amountAed < 1) {
+        await tx.fareSplit.update({ where: { id: split.id }, data: { status: "declined" } });
+        return "bad";
+      }
+      const nextPrice = theirs.priceAed - split.amountAed;
+      const refund = Math.max(0, theirs.walletPaidAed - nextPrice);
+      await tx.booking.update({
+        where: { id: theirs.id },
+        data: { priceAed: nextPrice, walletPaidAed: theirs.walletPaidAed - refund },
+      });
+      await tx.booking.update({
+        where: { id: mineFresh.id },
+        data: { priceAed: { increment: split.amountAed } },
+      });
+      if (refund > 0) {
+        await tx.walletEntry.create({
+          data: { id: nid("wal"), customerId: theirs.customerId, amountAed: refund, reason: "split", bookingId: theirs.id },
+        });
+        await tx.customer.update({
+          where: { id: theirs.customerId },
+          data: { walletBalanceAed: { increment: refund } },
+        });
+      }
+      return "ok";
+    });
+  } catch {
     redirect(`/${locale}/ride/trip/${mine.id}?error=split`);
   }
-  await prisma.booking.update({ where: { id: theirs.id }, data: { priceAed: { decrement: split.amountAed } } });
-  await prisma.booking.update({ where: { id: mine.id }, data: { priceAed: { increment: split.amountAed } } });
-  await prisma.fareSplit.update({ where: { id: split.id }, data: { status: "accepted" } });
-  redirect(`/${locale}/ride/trip/${mine.id}?ok=split`);
+  redirect(`/${locale}/ride/trip/${mine.id}?${outcome === "bad" ? "error=split" : "ok=split"}`);
 }

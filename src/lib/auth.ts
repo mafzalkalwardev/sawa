@@ -72,10 +72,7 @@ export async function requireRider(locale: string) {
   const session = await getSession();
   if (!session || session.kind !== "rider") redirect(`/${locale}/ride/login`);
   const customer = await prisma.customer.findUnique({ where: { id: session.id } });
-  if (!customer || customer.status === "deleted") {
-    await clearSession();
-    redirect(`/${locale}/ride/login`);
-  }
+  if (!customer || customer.status === "deleted") redirect(`/api/session/clear?next=${encodeURIComponent(`/${locale}/ride/login`)}`);
   return customer;
 }
 
@@ -86,10 +83,7 @@ export async function requireDriver(locale: string) {
     where: { id: session.id },
     include: { operator: true, vehicles: true },
   });
-  if (!driver) {
-    await clearSession();
-    redirect(`/${locale}/drive/login`);
-  }
+  if (!driver) redirect(`/api/session/clear?next=${encodeURIComponent(`/${locale}/drive/login`)}`);
   return driver;
 }
 
@@ -97,10 +91,7 @@ export async function requireStaff(locale: string, action?: StaffAction) {
   const session = await getSession();
   if (!session || session.kind !== "staff") redirect(`/${locale}/ops/login`);
   const staff = await prisma.staffUser.findUnique({ where: { id: session.id } });
-  if (!staff || !staff.active) {
-    await clearSession();
-    redirect(`/${locale}/ops/login`);
-  }
+  if (!staff || !staff.active) redirect(`/api/session/clear?next=${encodeURIComponent(`/${locale}/ops/login`)}`);
   if (action && !can(staff.role, action)) {
     redirect(`/${locale}/ops?error=forbidden`);
   }
