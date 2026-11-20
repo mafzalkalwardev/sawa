@@ -5,8 +5,12 @@ import { useEffect } from "react";
 export function LocationPublisher({ enabled }: { enabled: boolean }) {
   useEffect(() => {
     if (!enabled || !navigator.geolocation) return;
+    let sent = 0;
     const watch = navigator.geolocation.watchPosition(
       (position) => {
+        const now = Date.now();
+        if (now - sent < 8000) return;
+        sent = now;
         void fetch("/api/location", {
           method: "POST",
           headers: { "content-type": "application/json" },

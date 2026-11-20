@@ -3,7 +3,6 @@ import { notFound, redirect } from "next/navigation";
 import { PhoneShell } from "@/components/phone-shell";
 import { isLocale } from "@/i18n/locale";
 import { requireRider } from "@/lib/auth";
-import { ensureCommunity } from "@/server/community";
 
 export const metadata = { robots: { index: false, follow: false } };
 
@@ -16,7 +15,6 @@ export default async function RideLayout({
 }) {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
-  await ensureCommunity();
   const path = (await headers()).get("x-pathname") || "";
   if (path.endsWith("/login") || path.endsWith("/signup")) return children;
   const customer = await requireRider(locale);
